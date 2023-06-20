@@ -1,5 +1,7 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import StatesGroup, State
+
 from database import users
 from keyboards import inline, reply
 from handlers.registration import Registration
