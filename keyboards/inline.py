@@ -49,3 +49,10 @@ def profile_menu() -> InlineKeyboardMarkup:
         [InlineKeyboardButton('↩️ Вернуться в главное меню', callback_data='main_menu')]
     ])
     return kb
+
+
+def link_to_group() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('✅ Подписаться на группу', url='https://t.me/+MUSmeO2CMZdjODVi')]
+    ])
+    return kb

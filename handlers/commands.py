@@ -1,3 +1,5 @@
+
+import decouple
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
@@ -5,23 +7,43 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 from database import users
 from keyboards import inline, reply
 from handlers.registration import Registration
+from aiogram.utils.exceptions import MessageIdentifierNotSpecified, BadRequest
+
+
+class Subscription(StatesGroup):
+    sub = State()
 
 
 async def bot_start(msg: types.Message, state: FSMContext):
-    await state.finish()
-    name = msg.from_user.first_name
-    if msg.from_user.id not in await users.get_users_list():
-        if not msg.from_user.username:
-            await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
-                             f"\nНажмите 'Отправить контакт'", reply_markup=reply.contact())
-            await Registration.contact.set()
+    try:
+        name = msg.from_user.first_name
+        member = await msg.bot.get_chat_member(decouple.config("GROUP_ID"), msg.from_id)
+        if member.status == 'left':
+            mess = await msg.answer("Для продолжения работы с ботом, вам необходимо подписаться на группу",
+                                    reply_markup=inline.link_to_group())
+            await Subscription.sub.set()
+            await state.update_data({"sub": mess.message_id})
         else:
-            await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
-                             f"\nВыберите первую букву своего региона:",
-                             reply_markup=await inline.region_letter())
-            await Registration.region.set()
-    else:
-        await msg.answer(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
+            async with state.proxy() as data:
+                try:
+                    await msg.bot.delete_message(chat_id=msg.from_id, message_id=data.get('sub'))
+                    await state.finish()
+                except MessageIdentifierNotSpecified:
+                    await state.finish()
+            if msg.from_user.id not in await users.get_users_list():
+                if not msg.from_user.username:
+                    await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
+                                     f"\nНажмите 'Отправить контакт'", reply_markup=reply.contact())
+                    await Registration.contact.set()
+                else:
+                    await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
+                                     f"\nВыберите первую букву своего региона:",
+                                     reply_markup=await inline.region_letter())
+                    await Registration.region.set()
+            else:
+                await msg.answer(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
+    except BadRequest:
+        pass
 
 
 async def call_main_menu(call: types.CallbackQuery, state: FSMContext):
