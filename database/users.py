@@ -11,6 +11,26 @@ async def get_users_list():
         cur.close()
 
 
+async def get_blocked_users_list():
+    db, cur = connect()
+    try:
+        cur.execute("SELECT blocked_user_id FROM freebies_blockedusers")
+        return [user[0] for user in cur.fetchall()]
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_block_reason(tg_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT reason FROM freebies_blockedusers WHERE blocked_user_id = %s", (tg_id, ))
+        return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()
+
+
 async def add_new_user(tg, username, fullname, contact, region, city):
     db, cur = connect()
     if not contact:
