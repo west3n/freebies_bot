@@ -1,3 +1,5 @@
+import asyncio
+
 from database.connection import connect
 
 
@@ -29,6 +31,16 @@ async def get_amount_by_date_and_user(date, user):
     try:
         cur.execute(f"SELECT COUNT(*) FROM freebies_advert WHERE date = %s AND author_id = %s", (date, user, ))
         return cur.fetchone()
+    finally:
+        cur.close()
+        db.close()
+
+
+async def get_explicit_words():
+    db, cur = connect()
+    try:
+        cur.execute(f"SELECT word FROM freebies_explicitwords ORDER BY word")
+        return [word[0] for word in cur.fetchall()]
     finally:
         cur.close()
         db.close()

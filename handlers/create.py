@@ -51,7 +51,16 @@ async def handle_category(call: types.CallbackQuery, state: FSMContext):
 
 async def handle_caption(msg: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if msg.text:
+        explicit_words = await adverts.get_explicit_words()
+        found_words = []
+        for word in explicit_words:
+            if word in msg.text.lower():
+                found_words.append(word)
+        if found_words:
+            await msg.delete()
+            await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
+                             f"\n\nПопробуйте заново, избегая запрещённых слов")
+        else:
             data['caption'] = msg.text
             await msg.delete()
             await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
@@ -60,7 +69,6 @@ async def handle_caption(msg: types.Message, state: FSMContext):
                                          f"\n\nТеперь необходимо выбрать количество фотографий, "
                                          f"которые вы хотите прикрепить к объявлению",
                                          reply_markup=inline.media_amount())
-
             data['message_2'] = message_2.message_id
             await Creation.next()
 
@@ -246,7 +254,16 @@ async def handle_category_changes(call: types.CallbackQuery, state: FSMContext):
 
 async def handle_caption_changes(msg: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if msg.text:
+        explicit_words = await adverts.get_explicit_words()
+        found_words = []
+        for word in explicit_words:
+            if word in msg.text.lower():
+                found_words.append(word)
+        if found_words:
+            await msg.delete()
+            await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
+                             f"\n\nПопробуйте заново, избегая запрещённых слов")
+        else:
             if not data['readiness']:
                 text = f"\n<b>Вещи можно забрать только самовывозом</b>"
                 text_2 = ''
