@@ -58,12 +58,16 @@ async def handle_caption(msg: types.Message, state: FSMContext):
                 found_words.append(word)
         if found_words:
             await msg.delete()
+            await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
             await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
                              f"\n\nПопробуйте заново, избегая запрещённых слов")
         else:
             data['caption'] = msg.text
             await msg.delete()
-            await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
+            try:
+                await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
+            except MessageToDeleteNotFound:
+                pass
             message_2 = await msg.answer(f"<b>Категория</b> - <em>'{data.get('category')}'</em>"
                                          f"\n\n<b>Описание</b> - <em>'{msg.text}'</em>"
                                          f"\n\nТеперь необходимо выбрать количество фотографий, "

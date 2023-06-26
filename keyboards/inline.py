@@ -16,7 +16,7 @@ async def region_list(letter) -> InlineKeyboardMarkup:
     for region_name in await region.get_regions_by_first_letter(letter):
         button = InlineKeyboardButton(text=region_name, callback_data=region_name)
         kb.add(button)
-    button = InlineKeyboardButton(text="◀️ Назад", callback_data="back")
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back")
     kb.add(button)
     return kb
 
@@ -27,17 +27,17 @@ async def cities_list(region_name) -> InlineKeyboardMarkup:
         buttons.append(InlineKeyboardButton(text=city, callback_data=city))
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(*buttons)
-    button = InlineKeyboardButton(text="◀️ Назад", callback_data="back")
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back")
     kb.add(button)
     return kb
 
 
 def main_menu() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('🔍 Найти объявления', callback_data='find')],
+        [InlineKeyboardButton('📝 Создать объявление', callback_data='create')],
         [InlineKeyboardButton('🪪 Мой профиль', callback_data='profile'),
-         InlineKeyboardButton('⭐ Избранное', callback_data='favorites')],
-        [InlineKeyboardButton('🔍 Найти объявление', callback_data='find'),
-         InlineKeyboardButton('📝 Создать объявление', callback_data='create')]
+         InlineKeyboardButton('⭐ Избранное', callback_data='favorites')]
     ])
     return kb
 
@@ -71,7 +71,20 @@ async def get_category_list() -> InlineKeyboardMarkup:
         buttons.append(InlineKeyboardButton(text=category, callback_data=category))
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(*buttons)
-    button = InlineKeyboardButton(text="◀️ Вернуться в главное меню", callback_data="main_menu")
+    button = InlineKeyboardButton(text="↩️ Вернуться в главное меню", callback_data="main_menu")
+    kb.add(button)
+    return kb
+
+
+async def get_category_search_list() -> InlineKeyboardMarkup:
+    buttons = []
+    for category in await adverts.get_category_list():
+        buttons.append(InlineKeyboardButton(text=category, callback_data=category))
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(*buttons)
+    button = InlineKeyboardButton(text="🧸 Поиск по всем категориям", callback_data="all_categories")
+    kb.add(button)
+    button = InlineKeyboardButton(text="↩️ Вернуться в главное меню", callback_data="main_menu")
     kb.add(button)
     return kb
 
@@ -126,3 +139,147 @@ def media_amount() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(row_width=5)
     kb.add(*buttons)
     return kb
+
+
+def search_all_exact() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('🔍 Поиск по любым словам', callback_data='search_all')],
+        [InlineKeyboardButton('📃 Поиск по конкретным словам', callback_data='search_exact')],
+        [InlineKeyboardButton('↩️ Вернуться к выбору категории', callback_data='return_category')]
+    ])
+    return kb
+
+
+def search_region(city) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(f'🏠 {city}', callback_data=city)],
+        [InlineKeyboardButton('🔀 Выбрать другой населённый пункт', callback_data='other_city')],
+        [InlineKeyboardButton('🇷🇺 Поиск по всей России', callback_data='all_cities')],
+        [InlineKeyboardButton('↩️ Вернуться к выбору формата', callback_data='return_format')]
+    ])
+    return kb
+
+
+def confirm_searching() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('🔍 Начать поиск', callback_data='start_searching')],
+        [InlineKeyboardButton('↩️ Вернуться к выбору региона', callback_data='return_region')],
+
+    ])
+    return kb
+
+
+def advert_menu(username, results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton('⭐️ Добавить в избранное', callback_data='favorite_advert')),
+    markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
+    if current_index == 0:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{len(results)}"),
+            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    elif current_index == len(results) - 1:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+        )
+    else:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    markup.add()
+    return markup
+
+
+def advert_menu_favorite(username, results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
+    if current_index == 0:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{len(results)}"),
+            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    elif current_index == len(results) - 1:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+        )
+    else:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    markup.add()
+    return markup
+
+
+def favorites_menu(username, results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton('❌ Убрать из избранного', callback_data='favorite_remove')),
+    if current_index == 0:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{len(results)}"),
+            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    elif current_index == len(results) - 1:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+        )
+    else:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    markup.add()
+    return markup
+
+
+def favorites_menu_2(username, results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    if current_index == 0:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{len(results)}"),
+            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    elif current_index == len(results) - 1:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+        )
+    else:
+        markup.row(
+            InlineKeyboardButton("Назад ◀️", callback_data=f"prev:{current_index}"),
+            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
+        )
+    markup.add()
+    return markup

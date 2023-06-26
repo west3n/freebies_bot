@@ -70,4 +70,4 @@ async def call_main_menu(call: types.CallbackQuery, state: FSMContext):
 
 def register(dp: Dispatcher):
     dp.register_message_handler(bot_start, commands='start', state='*')
-    dp.register_callback_query_handler(call_main_menu, text='main_menu')
+    dp.register_callback_query_handler(call_main_menu, text='main_menu', state="*")

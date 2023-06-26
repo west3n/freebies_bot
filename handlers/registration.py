@@ -53,7 +53,7 @@ async def finish_registration(call: types.CallbackQuery, state: FSMContext):
         else:
             data['city'] = call.data
             if user_exist:
-                await users.update_region(data.get('region'), data.get('city'))
+                await users.update_region(data.get('region'), data.get('city'), call.from_user.id)
                 await call.message.edit_text("Регион успешно обновлён!", reply_markup=inline.main_menu())
                 await state.finish()
             else:

@@ -55,10 +55,10 @@ async def get_user_data(tg_id):
         cur.close()
 
 
-async def update_region(region, city):
+async def update_region(region, city, tg_id):
     db, cur = connect()
     try:
-        cur.execute("UPDATE freebies_userprofile SET region = %s, city = %s", (region, city))
+        cur.execute("UPDATE freebies_userprofile SET region = %s, city = %s WHERE tg = %s", (region, city, tg_id))
         db.commit()
     finally:
         db.close()
