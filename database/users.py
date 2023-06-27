@@ -63,3 +63,55 @@ async def update_region(region, city, tg_id):
     finally:
         db.close()
         cur.close()
+
+
+async def block_user(tg_id, reason):
+    db, cur = connect()
+    try:
+        cur.execute("INSERT INTO freebies_blockedusers (blocked_user_id, reason) VALUES (%s, %s)", (tg_id, reason,))
+        db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def new_agreement(author_id, user_id, ad_id):
+    db, cur = connect()
+    try:
+        cur.execute("INSERT INTO freebies_agreements (author_id, user_id, ad_id) VALUES (%s, %s, %s)",
+                    (author_id, user_id, ad_id, ))
+        db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def delete_agreement(author_id, ad_id):
+    db, cur = connect()
+    try:
+        cur.execute("DELETE FROM freebies_agreements WHERE author_id = %s AND ad_id = %s",
+                    (author_id, ad_id,))
+        db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_agreement_users(ad_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT id, author_id, user_id FROM freebies_agreements WHERE ad_id = %s", (ad_id,))
+        return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_agreement_data(agreement_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT ad_id, author_id, user_id FROM freebies_agreements WHERE id = %s", (agreement_id,))
+        return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()

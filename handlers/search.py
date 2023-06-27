@@ -1,3 +1,6 @@
+import asyncio
+
+import decouple
 import psycopg2
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
@@ -15,6 +18,7 @@ class AdvertSearch(StatesGroup):
     letter = State()
     city = State()
     confirm = State()
+    complaint = State()
 
 
 async def select_category(call: types.CallbackQuery):
@@ -172,6 +176,13 @@ async def start_searching(call: types.CallbackQuery, state: FSMContext):
             await call.message.edit_reply_markup(reply_markup=inline.advert_menu_favorite(
                 data.get('username'), data.get('results'), data.get('current_index')))
             await call.answer('Объявление добавлено в избранное!')
+    elif call.data == 'complain_advert':
+        async with state.proxy() as data:
+            complaint_message = await call.message.reply(
+                f"Вы хотите пожаловаться на объявление с ID {data.get('ad_id')}.\n\n"
+                f"Опишите причину жалобы (не больше 500 символов)")
+            data['complaint_message'] = complaint_message
+            await AdvertSearch.complaint.set()
     elif call.data == 'main_menu_search':
         name = call.from_user.first_name
         async with state.proxy() as data:
@@ -239,7 +250,7 @@ async def start_searching(call: types.CallbackQuery, state: FSMContext):
                 media = types.InputMediaPhoto(media=file_id)
                 media_group.append(media)
             username = await adverts.get_username_by_advert_id(result[0])
-            text = f"<b>Объявление {current_index + 1} из {len(results)}:</b>\n\n"\
+            text = f"<b>Объявление {current_index + 1} из {len(results)}:</b>\n\n" \
                    f"<b>ID объявления:</b> {result[0]}\n" \
                    f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
                    f"<b>Категория:</b> {result[9]}\n" \
@@ -268,6 +279,67 @@ async def start_searching(call: types.CallbackQuery, state: FSMContext):
             await state.finish()
 
 
+async def handle_complaint(msg: types.Message, state: FSMContext):
+    if len(msg.text) > 500:
+        await msg.delete()
+        await msg.answer("Длина текста жалобы не должна превышать 500 символов. Попробуйте еще раз!")
+    explicit_words = await adverts.get_explicit_words()
+    found_words = []
+    for word in explicit_words:
+        if word in msg.text.lower():
+            found_words.append(word)
+    if found_words:
+        await msg.delete()
+        message_2 = await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
+                                     f"\n\nПопробуйте заново, избегая запрещённых слов")
+        async with state.proxy() as data:
+            data['explicit'] = message_2
+    else:
+        async with state.proxy() as data:
+            data['complaint'] = msg.text
+        try:
+            message_id = data.get('complaint_message')
+            explicit_message = data.get('explicit')
+            await msg.bot.delete_message(msg.chat.id, int(message_id.message_id))
+            await msg.bot.delete_message(msg.chat.id, int(explicit_message.message_id))
+        except MessageToDeleteNotFound:
+            pass
+        except AttributeError:
+            pass
+        await msg.delete()
+        async with state.proxy() as data:
+            result = await adverts.get_advert_data(data.get('ad_id'))
+            media_group = []
+            file_ids = result[4].strip().split("\n")
+            for file_id in file_ids:
+                media = types.InputMediaPhoto(media=file_id)
+                media_group.append(media)
+            username = await adverts.get_username_by_advert_id(result[0])
+            username_text = f"\nПрофиль автора в Телеграм: @{username[0]}" if username[0] else ''
+            text = f'Пользователь c ID {msg.from_user.id} ({msg.from_user.full_name}) пожаловался на объявление:' \
+                   f'\n<b>Текст жалобы:</b> <em>{msg.text}</em>' \
+                   f"\n\n<b>ID объявления:</b> {result[0]}\n" \
+                   f"{username_text}" \
+                   f"\n<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}" \
+                   f"\n<b>Категория:</b> {result[9]}" \
+                   f"\n<b>Населённый пункт:</b> {result[2]}, {result[3]}" \
+                   f"\n<b>Описание:</b> {result[5]}" \
+                   f"\n\nВыберите дальнейшее действие:"
+        await msg.bot.send_media_group(int(decouple.config("ADMIN_ID")), media_group)
+        await msg.bot.send_message(int(decouple.config("ADMIN_ID")), text,
+                                   reply_markup=inline.admin_complaint(data.get('ad_id')))
+        message_2 = await msg.answer(
+            "Ваша жалоба отправлена администратору."
+            "\nЕсли жалоба будет одобрена, вам придёт сообщение от бота."
+            "\nВы можете вернуться к просмотру объявлений, это сообщение исчезнет через 10 секунд")
+        if msg.from_id == int(decouple.config('ADMIN_ID')):
+            await state.finish()
+        else:
+            await state.set_state(AdvertSearch.confirm.state)
+        await asyncio.sleep(10)
+        await msg.bot.delete_message(msg.chat.id, int(message_2.message_id))
+
+
 def register(dp: Dispatcher):
     dp.register_callback_query_handler(select_category, text='find')
     dp.register_callback_query_handler(search_format, state=AdvertSearch.category)
@@ -277,3 +349,4 @@ def register(dp: Dispatcher):
     dp.register_callback_query_handler(handle_region_letter, state=AdvertSearch.letter)
     dp.register_callback_query_handler(search_city_selection, state=AdvertSearch.city)
     dp.register_callback_query_handler(start_searching, state=AdvertSearch.confirm)
+    dp.register_message_handler(handle_complaint, state=AdvertSearch.complaint)

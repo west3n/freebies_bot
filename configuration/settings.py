@@ -9,6 +9,7 @@ from handlers.profile import register as reg_profile
 from handlers.create import register as reg_create
 from handlers.search import register as reg_search
 from handlers.favorites import register as reg_favorites
+from handlers.admin import register as reg_admin
 
 
 bot_token = config("BOT_TOKEN")
@@ -28,3 +29,4 @@ def register_handlers(dp: Dispatcher):
     reg_create(dp)
     reg_search(dp)
     reg_favorites(dp)
+    reg_admin(dp)

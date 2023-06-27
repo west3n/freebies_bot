@@ -12,7 +12,7 @@ def connect():
         )
         cur = db.cursor()
         return db, cur
-    except:
+    except psycopg2.Error:
         db = psycopg2.connect(
             host=config("DB_HOST"),
             database=config("DB_NAME"),

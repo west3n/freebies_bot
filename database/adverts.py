@@ -13,12 +13,13 @@ async def get_category_list():
         db.close()
 
 
-async def save_new_advert(data, author, region, city, category, photos, caption, delivery, payer):
+async def save_new_advert(date, author, region, city, category, photos, caption, delivery, payer):
     db, cur = connect()
     try:
         cur.execute(f"INSERT INTO freebies_advert (date, author_id, region, city, category_id, "
-                    f"photos, caption, delivery, payer) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-                    (data, author, region, city, category, photos, caption, delivery, payer, ))
+                    f"photos, caption, delivery, payer, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                    f"RETURNING id",
+                    (date, author, region, city, category, photos, caption, delivery, payer, 'active', ))
         db.commit()
         return cur.fetchone()
     finally:
@@ -61,12 +62,21 @@ async def search_adverts(tg_id, city, caption, category_id):
         if caption == 'Любые слова':
             query += "AND caption IS NOT NULL "
         elif caption:
-            query += "AND ("
-            for word in caption:
-                query += "caption LIKE %s OR "
-                params.append('%' + word + '%')
-            query = query[:-4]
-            query += ")"
+            query += "AND "
+            if isinstance(caption, str):
+                if len(caption.split(",")) == 1:
+                    query += "LOWER(caption) LIKE LOWER(%s) OR "
+                    params.append(f'%{caption.lower()}%')
+                else:
+                    caption_list = caption.split(",")
+                    for word in caption_list:
+                        query += "LOWER(caption) LIKE LOWER(%s) OR "
+                        params.append(f'%{word.lower()}%')
+            else:
+                for word in caption:
+                    query += "LOWER(caption) LIKE LOWER(%s) OR "
+                    params.append(f'%{word.lower()}%')
+            query = query[:-3]
 
         if category_id == "Все категории":
             query += "AND category_id IS NOT NULL "
@@ -74,7 +84,7 @@ async def search_adverts(tg_id, city, caption, category_id):
             query += "AND category_id = %s "
             params.append(category_id)
 
-        query += "ORDER BY date"
+        query += "AND status = 'active' ORDER BY date"
         cur.execute(query, params)
         return cur.fetchall()
     finally:
@@ -89,6 +99,46 @@ async def get_username_by_advert_id(advert_id):
         tg_id = cur.fetchone()
         cur.execute("SELECT username, contact FROM freebies_userprofile WHERE tg = %s", (str(tg_id[0]), ))
         return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_advert_data(advert_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT * FROM freebies_advert WHERE id = %s", (advert_id,))
+        return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def delete_advert(advert_id):
+    db, cur = connect()
+    try:
+        cur.execute("DELETE FROM freebies_advert WHERE id = %s", (advert_id,))
+        db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_user_adverts(tg_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT * FROM freebies_advert WHERE author_id = %s", (tg_id,))
+        return cur.fetchall()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def change_status(ad_id, status):
+    db, cur = connect()
+    try:
+        cur.execute("UPDATE freebies_advert SET status = %s WHERE id = %s", (status, ad_id, ))
+        db.commit()
     finally:
         db.close()
         cur.close()

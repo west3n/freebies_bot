@@ -1,4 +1,3 @@
-import psycopg2
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
@@ -63,8 +62,9 @@ async def handle_pagination(call: types.CallbackQuery, state: FSMContext):
         async with state.proxy() as data:
             await favorite.remove_from_favorites(int(data.get('ad_id')), call.from_user.id)
             await call.message.edit_reply_markup(reply_markup=inline.favorites_menu_2(
-                data.get('username')[0], data.get('results'), len(data.get('results')) - 1))
+                data.get('username')[0], data.get('results'), int(data.get('current_index')) - 1))
             await call.answer('Объявление удалено из избранного!')
+            data['current_index'] = int(data.get('current_index')) - 1
     elif call.data == 'main_menu_search':
         name = call.from_user.first_name
         async with state.proxy() as data:
@@ -78,7 +78,6 @@ async def handle_pagination(call: types.CallbackQuery, state: FSMContext):
     else:
         async with state.proxy() as data:
             current_index = data.get('current_index')
-            print(current_index)
             username = data.get('username')
         try:
             for message in data.get('media_group'):
