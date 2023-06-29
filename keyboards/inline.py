@@ -24,8 +24,6 @@ async def region_letter_1() -> InlineKeyboardMarkup:
         buttons.append(InlineKeyboardButton(text=letter, callback_data=letter))
     kb = InlineKeyboardMarkup(row_width=7)
     kb.add(*buttons)
-    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_1")
-    kb.add(button)
     return kb
 
 
@@ -36,17 +34,6 @@ async def region_letter_2() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(row_width=7)
     kb.add(*buttons)
     button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_2")
-    kb.add(button)
-    return kb
-
-
-async def region_letter_3() -> InlineKeyboardMarkup:
-    buttons = []
-    for letter in await region.get_first_letters():
-        buttons.append(InlineKeyboardButton(text=letter, callback_data=letter))
-    kb = InlineKeyboardMarkup(row_width=7)
-    kb.add(*buttons)
-    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_3")
     kb.add(button)
     return kb
 
@@ -468,3 +455,39 @@ def review_pagination(results, current_index) -> InlineKeyboardMarkup:
             markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
         markup.add()
     return markup
+
+
+async def moscow_region_name_range() -> InlineKeyboardMarkup:
+    ranges = ['А-Г', 'Д-И', 'К-Л', 'М-П', 'Р-Т', 'У-Я']
+    buttons = []
+    for name_range in ranges:
+        buttons.append(InlineKeyboardButton(text=name_range, callback_data=name_range))
+    kb = InlineKeyboardMarkup(row_width=3)
+    kb.add(*buttons)
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back")
+    kb.add(button)
+    return kb
+
+
+async def moscow_city_list(name_range) -> InlineKeyboardMarkup:
+    range_dict = {
+        'А-Г': ('А', 'Д'),
+        'Д-И': ('Д', 'К'),
+        'К-Л': ('К', 'М'),
+        'М-П': ('М', 'Р'),
+        'Р-Т': ('Р', 'У'),
+        'У-Я': ('У', 'Я')
+    }
+    buttons = []
+    cities_range = range_dict.get(name_range)
+    if cities_range:
+        cities = await region.get_cities_moscow_region(*cities_range)
+        for city in cities:
+            buttons.append(InlineKeyboardButton(text=city, callback_data=city))
+        if name_range == 'У-Я':
+            buttons.append(InlineKeyboardButton(text="Яхрома", callback_data='Яхрома'))
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(*buttons)
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back")
+    kb.add(button)
+    return kb

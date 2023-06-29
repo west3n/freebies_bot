@@ -1,5 +1,3 @@
-import asyncio
-
 from database.connection import connect
 
 
@@ -139,6 +137,23 @@ async def change_status(ad_id, status):
     try:
         cur.execute("UPDATE freebies_advert SET status = %s WHERE id = %s", (status, ad_id, ))
         db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_amount_agreements(tg_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT COUNT(*) FROM freebies_agreements WHERE author_id = %s", (tg_id, ))
+        author_count = cur.fetchone()
+        cur.execute("SELECT * FROM freebies_agreements WHERE author_id = %s", (tg_id,))
+        author_deals = cur.fetchall()
+        cur.execute("SELECT COUNT(*) FROM freebies_agreements WHERE author_id = %s", (tg_id,))
+        user_count = cur.fetchone()
+        cur.execute("SELECT * FROM freebies_agreements WHERE user_id = %s", (tg_id,))
+        user_deals = cur.fetchone()
+        return author_count, author_deals, user_count, user_deals
     finally:
         db.close()
         cur.close()

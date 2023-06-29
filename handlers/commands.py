@@ -58,7 +58,7 @@ async def bot_start(msg: types.Message, state: FSMContext):
                     await msg.bot.delete_message(msg.chat.id, message_id.message_id)
                     await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
                                      f"\nВыберите первую букву своего региона:",
-                                     reply_markup=await inline.region_letter())
+                                     reply_markup=await inline.region_letter_1())
                     await Registration.region.set()
             else:
                 if msg.from_user.id not in await users.get_blocked_users_list():
@@ -74,7 +74,19 @@ async def call_main_menu(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
 
 
+async def information(msg: types.Message, state: FSMContext):
+    await state.finish()
+    await msg.answer("Раздел 'Информация' находится в разработке!")
+
+
+async def faq(msg: types.Message, state: FSMContext):
+    await state.finish()
+    await msg.answer("Раздел 'FAQ' находится в разработке!")
+
+
 def register(dp: Dispatcher):
     dp.register_message_handler(file_id, content_types=['video'])
     dp.register_message_handler(bot_start, commands='start', state='*')
+    dp.register_message_handler(information, commands='information', state='*')
+    dp.register_message_handler(faq, commands='faq', state='*')
     dp.register_callback_query_handler(call_main_menu, text='main_menu', state="*")

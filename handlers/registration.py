@@ -1,11 +1,13 @@
-import asyncio
+# import asyncio
+# import re
+# from aiogram.utils.exceptions import MessageToDeleteNotFound
 import decouple
-import re
+
 
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.utils.exceptions import MessageToDeleteNotFound
+
 from keyboards import inline, reply
 from database import users
 
@@ -13,6 +15,7 @@ from database import users
 class Registration(StatesGroup):
     contact = State()
     region = State()
+    moscow = State()
     city = State()
     finish = State()
 
@@ -164,51 +167,57 @@ async def handle_user_contact(msg: types.Message, state: FSMContext):
 
 
 async def handle_region_letter(call: types.CallbackQuery, state: FSMContext):
-    if call.data == "back_2":
-        await state.set_state(Registration.region.state)
-        user_data = await users.get_user_data(call.from_user.id)
-        grade_amount = await users.get_grade_amount(call.from_user.id)
-        grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
-        text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
-               f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
-        if user_data[3] == "Нет контакта":
-            text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
-        else:
-            text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
-        text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
-                f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
-                f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
-        await state.finish()
-        await call.message.edit_text(text, reply_markup=inline.profile_menu())
-    else:
-        letter = call.data
-        await call.message.edit_text("Выберите свой регион:",
-                                     reply_markup=await inline.region_list(letter))
-        await Registration.next()
+    letter = call.data
+    await call.message.edit_text("Выберите свой регион:",
+                                 reply_markup=await inline.region_list(letter))
+    await state.set_state(Registration.city.state)
 
 
 async def city_selection(call: types.CallbackQuery, state: FSMContext):
     if call.data == "back":
-        await state.set_state(Registration.region.state)
         await call.message.edit_text(f"Выберите первую букву своего региона:",
                                      reply_markup=await inline.region_letter_1())
+        await state.set_state(Registration.region.state)
     else:
         async with state.proxy() as data:
             data['region'] = call.data
+        if call.data == 'Москва и Московская обл.':
+            await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                         reply_markup=await inline.moscow_region_name_range())
+            await state.set_state(Registration.moscow.state)
+        else:
+            await call.message.edit_text("Выберите свой населенный пункт или тот, который находится ближе всего к вам:",
+                                         reply_markup=await inline.cities_list(call.data))
+            await state.set_state(Registration.finish.state)
+
+
+async def moscow_city_selection(call: types.CallbackQuery, state: FSMContext):
+    ranges = ['А-Г', 'Д-И', 'К-Л', 'М-П', 'Р-Т', 'У-Я']
+    if call.data in ranges:
         await call.message.edit_text("Выберите свой населенный пункт или тот, который находится ближе всего к вам:",
-                                     reply_markup=await inline.cities_list(call.data))
-        await Registration.next()
+                                     reply_markup=await inline.moscow_city_list(call.data))
+        await state.set_state(Registration.finish.state)
+    else:
+        await state.set_state(Registration.city.state)
+        async with state.proxy() as data:
+            letter = data.get('region')[0]
+            await call.message.edit_text("Выберите свой регион:",
+                                         reply_markup=await inline.region_list(letter))
 
 
 async def finish_registration(call: types.CallbackQuery, state: FSMContext):
     user_exist = await users.get_user_data(call.from_user.id)
     async with state.proxy() as data:
         if call.data == "back":
-            await state.set_state(Registration.city.state)
-            region = data.get('region')
-            letter = region[0]
-            await call.message.edit_text("Выберите свой регион:",
-                                         reply_markup=await inline.region_list(letter))
+            if data.get('region') == 'Москва и Московская обл.':
+                await state.set_state(Registration.moscow.state)
+                await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                             reply_markup=await inline.moscow_region_name_range())
+            else:
+                await state.set_state(Registration.city.state)
+                letter = data.get('region')[0]
+                await call.message.edit_text("Выберите свой регион:",
+                                             reply_markup=await inline.region_list(letter))
         else:
             data['city'] = call.data
             if user_exist:
@@ -229,4 +238,5 @@ def register(dp: Dispatcher):
     dp.register_message_handler(handle_user_contact, content_types=['text', 'contact'], state=Registration.contact)
     dp.register_callback_query_handler(handle_region_letter, state=Registration.region)
     dp.register_callback_query_handler(city_selection, state=Registration.city)
+    dp.register_callback_query_handler(moscow_city_selection, state=Registration.moscow)
     dp.register_callback_query_handler(finish_registration, state=Registration.finish)

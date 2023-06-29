@@ -8,7 +8,6 @@ from aiogram.utils.exceptions import MessageToDeleteNotFound
 import handlers.create
 from database import users, adverts, review
 from keyboards import inline
-from handlers.registration import Registration
 
 
 class UserAdverts(StatesGroup):
@@ -23,9 +22,17 @@ class Review(StatesGroup):
     paginate = State()
 
 
+class ChangeRegion(StatesGroup):
+    region = State()
+    moscow = State()
+    city = State()
+    finish = State()
+
+
 async def profile_menu(call: types.CallbackQuery):
     user_data = await users.get_user_data(call.from_user.id)
     grade_amount = await users.get_grade_amount(call.from_user.id)
+    author_count, author_deals, user_count, user_deals = await adverts.get_amount_agreements(call.from_user.id)
     grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
     text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
            f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
@@ -34,15 +41,96 @@ async def profile_menu(call: types.CallbackQuery):
     else:
         text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
     text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
+            f"\n\n<b>🤝 Активные сделки:</b>" \
+            f"\n<b>🤴 Владелец:</b> {author_count[0]}" \
+            f"\n<b>🚚 Получатель:</b> {user_count[0]}" \
             f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
             f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
     await call.message.edit_text(text, reply_markup=inline.profile_menu())
 
 
-async def change_region(call: types.CallbackQuery, state: FSMContext):
-    await state.set_state(Registration.region.state)
+async def change_region(call: types.CallbackQuery):
     await call.message.edit_text(f"Выберите первую букву своего региона:",
                                  reply_markup=await inline.region_letter_2())
+    await ChangeRegion.region.set()
+
+
+async def handle_change_region_letter(call: types.CallbackQuery, state: FSMContext):
+    if call.data == "back_2":
+        await state.finish()
+        user_data = await users.get_user_data(call.from_user.id)
+        grade_amount = await users.get_grade_amount(call.from_user.id)
+        author_count, author_deals, user_count, user_deals = await adverts.get_amount_agreements(call.from_user.id)
+        grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
+        text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
+               f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
+        if user_data[3] == "Нет контакта":
+            text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
+        else:
+            text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
+        text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
+                f"\n\n<b>🤝 Активные сделки:</b>" \
+                f"\n<b>🤴 Владелец:</b> {author_count[0]}" \
+                f"\n<b>🚚 Получатель:</b> {user_count[0]}" \
+                f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
+                f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
+        await call.message.edit_text(text, reply_markup=inline.profile_menu())
+    else:
+        letter = call.data
+        await call.message.edit_text("Выберите свой регион:",
+                                     reply_markup=await inline.region_list(letter))
+        await state.set_state(ChangeRegion.city.state)
+
+
+async def change_city_selection(call: types.CallbackQuery, state: FSMContext):
+    if call.data == "back":
+        await call.message.edit_text(f"Выберите первую букву своего региона:",
+                                     reply_markup=await inline.region_letter_2())
+        await state.set_state(ChangeRegion.region.state)
+    else:
+        async with state.proxy() as data:
+            data['region'] = call.data
+        if call.data == 'Москва и Московская обл.':
+            await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                         reply_markup=await inline.moscow_region_name_range())
+            await state.set_state(ChangeRegion.moscow.state)
+        else:
+            await call.message.edit_text("Выберите свой населенный пункт или тот, который находится ближе всего к вам:",
+                                         reply_markup=await inline.cities_list(call.data))
+            await state.set_state(ChangeRegion.finish.state)
+
+
+async def change_moscow_city_selection(call: types.CallbackQuery, state: FSMContext):
+    ranges = ['А-Г', 'Д-И', 'К-Л', 'М-П', 'Р-Т', 'У-Я']
+    if call.data in ranges:
+        await call.message.edit_text("Выберите свой населенный пункт или тот, который находится ближе всего к вам:",
+                                     reply_markup=await inline.moscow_city_list(call.data))
+        await state.set_state(ChangeRegion.finish.state)
+    else:
+        await state.set_state(ChangeRegion.city.state)
+        async with state.proxy() as data:
+            letter = data.get('region')[0]
+            await call.message.edit_text("Выберите свой регион:",
+                                         reply_markup=await inline.region_list(letter))
+
+
+async def finish_change_region(call: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:
+        if call.data == "back":
+            if data.get('region') == 'Москва и Московская обл.':
+                await state.set_state(ChangeRegion.moscow.state)
+                await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                             reply_markup=await inline.moscow_region_name_range())
+            else:
+                await state.set_state(ChangeRegion.city.state)
+                letter = data.get('region')[0]
+                await call.message.edit_text("Выберите свой регион:",
+                                             reply_markup=await inline.region_list(letter))
+        else:
+            data['city'] = call.data
+            await users.update_region(data.get('region'), data.get('city'), call.from_user.id)
+            await call.message.edit_text("Регион успешно обновлён!", reply_markup=inline.main_menu())
+            await state.finish()
 
 
 async def my_adverts(call: types.CallbackQuery, state: FSMContext):
@@ -233,7 +321,8 @@ async def change_status(call: types.CallbackQuery, state: FSMContext):
     elif call.data == 'agreement':
         await state.set_state(UserAdverts.agreement.state)
         agreement_message = await call.message.edit_text("Попросите у пользователя, с которым вы договорились, "
-                                                         "его ID в боте и введите его:")
+                                                         "его ID в боте и введите его "
+                                                         "\n(Он может посмотреть его в разделе 'Мой профиль'):")
         async with state.proxy() as data:
             data['agreement_message'] = agreement_message
     elif call.data == 'active':
@@ -438,12 +527,17 @@ async def handle_review_pagination(call: types.CallbackQuery, state: FSMContext)
             elif call.data == 'main_menu_review':
                 name = call.from_user.first_name
                 await state.finish()
-                await call.message.edit_text(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
+                await call.message.edit_text(f"{name}, добро пожаловать в Freebies Bot!",
+                                             reply_markup=inline.main_menu())
 
 
 def register(dp: Dispatcher):
     dp.register_callback_query_handler(profile_menu, text='profile')
     dp.register_callback_query_handler(change_region, text='change_region')
+    dp.register_callback_query_handler(handle_change_region_letter, state=ChangeRegion.region)
+    dp.register_callback_query_handler(change_moscow_city_selection, state=ChangeRegion.moscow)
+    dp.register_callback_query_handler(change_city_selection, state=ChangeRegion.city)
+    dp.register_callback_query_handler(finish_change_region, state=ChangeRegion.finish)
     dp.register_callback_query_handler(my_adverts, text='my_adverts')
     dp.register_callback_query_handler(paginate_my_adverts, state=UserAdverts.advert)
     dp.register_callback_query_handler(delete_advert, state=UserAdverts.delete)

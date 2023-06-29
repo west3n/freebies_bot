@@ -16,6 +16,7 @@ class AdvertSearch(StatesGroup):
     format = State()
     region = State()
     letter = State()
+    moscow = State()
     city = State()
     confirm = State()
     complaint = State()
@@ -124,15 +125,19 @@ async def handle_region(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(AdvertSearch.confirm.state)
     elif call.data == 'other_city':
         await call.message.edit_text("Выберите первую букву региона поиска:",
-                                     reply_markup=await inline.region_letter_3())
+                                     reply_markup=await inline.region_letter_2())
         await state.set_state(AdvertSearch.letter.state)
     elif call.data == 'back':
-        await state.set_state(AdvertSearch.city.state)
         async with state.proxy() as data:
-            region = data.get('region_search')
-        letter = region[0]
-        await call.message.edit_text("Выберите регион поиска:",
-                                     reply_markup=await inline.region_list(letter))
+            if data.get('region_search') == 'Москва и Московская обл.':
+                await state.set_state(AdvertSearch.moscow.state)
+                await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                             reply_markup=await inline.moscow_region_name_range())
+            else:
+                await state.set_state(AdvertSearch.city.state)
+                letter = data.get('region_search')[0]
+                await call.message.edit_text("Выберите свой регион:",
+                                             reply_markup=await inline.region_list(letter))
     else:
         async with state.proxy() as data:
             data['region'] = call.data
@@ -148,38 +153,73 @@ async def handle_region(call: types.CallbackQuery, state: FSMContext):
 
 
 async def handle_region_letter(call: types.CallbackQuery, state: FSMContext):
-    if call.data == 'back_3':
+    if call.data == 'back_2':
         city = await users.get_user_data(call.from_user.id)
         async with state.proxy() as data:
             if data.get('format') == "Любые слова":
-                await state.set_state(AdvertSearch.letter.state)
                 await call.message.edit_text("Вы выбрали поиск <b>по всем словам</b>.\n\n"
                                              "Теперь необходимо выбрать регион:",
                                              reply_markup=inline.search_region(city[5]))
+                await state.set_state(AdvertSearch.region.state)
             else:
-                print("YOU ARE HERE")
+                if type(data.get('format')) == str:
+                    await call.message.edit_text(f"Вы выбрали поиск по слову '{data.get('format')}'.\n\n"
+                                                 "Теперь необходимо выбрать регион:",
+                                                 reply_markup=inline.search_region(city[5]))
+                    await state.set_state(AdvertSearch.region.state)
+                elif type(data.get('format')) == list:
+                    words = ",".join(data.get("format"))
+                    await call.message.edit_text(f"Вы выбрали поиск по словам '{words}'.\n\n"
+                                                 "Теперь необходимо выбрать регион:",
+                                                 reply_markup=inline.search_region(city[5]))
+                    await state.set_state(AdvertSearch.region.state)
     else:
         letter = call.data
         await call.message.edit_text("Выберите регион поиска:",
                                      reply_markup=await inline.region_list(letter))
-        await AdvertSearch.next()
+        await state.set_state(AdvertSearch.city.state)
+
+
+async def search_moscow_city_selection(call: types.CallbackQuery, state: FSMContext):
+    ranges = ['А-Г', 'Д-И', 'К-Л', 'М-П', 'Р-Т', 'У-Я']
+    if call.data in ranges:
+        await call.message.edit_text("Выберите населенный пункт, в котором хотите произвести поиск:",
+                                     reply_markup=await inline.moscow_city_list(call.data))
+        await state.set_state(AdvertSearch.region.state)
+    elif call.data == 'back':
+        await state.set_state(AdvertSearch.city.state)
+        async with state.proxy() as data:
+            letter = data.get('region_search')[0]
+            await call.message.edit_text("Выберите регион поиска:",
+                                         reply_markup=await inline.region_list(letter))
 
 
 async def search_city_selection(call: types.CallbackQuery, state: FSMContext):
     if call.data == "back":
         await call.message.edit_text(f"Выберите первую букву своего региона:",
-                                     reply_markup=await inline.region_letter_1())
+                                     reply_markup=await inline.region_letter_2())
         await state.set_state(AdvertSearch.letter.state)
     else:
         async with state.proxy() as data:
             data['region_search'] = call.data
-        await call.message.edit_text("Выберите населенный пункт, в котором хотите произвести поиск:",
-                                     reply_markup=await inline.cities_list(call.data))
-        await state.set_state(AdvertSearch.region.state)
+        if call.data == 'Москва и Московская обл.':
+            await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                         reply_markup=await inline.moscow_region_name_range())
+            await state.set_state(AdvertSearch.moscow.state)
+        else:
+            await call.message.edit_text("Выберите населенный пункт, в котором хотите произвести поиск:",
+                                         reply_markup=await inline.cities_list(call.data))
+            await state.set_state(AdvertSearch.region.state)
 
 
 async def start_searching(call: types.CallbackQuery, state: FSMContext):
-    if call.data == 'favorite_advert':
+    if call.data == "back":
+        async with state.proxy() as data:
+            if data.get('region') == 'Москва и Московская обл.':
+                await state.set_state(AdvertSearch.moscow.state)
+                await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
+                                             reply_markup=await inline.moscow_region_name_range())
+    elif call.data == 'favorite_advert':
         async with state.proxy() as data:
             try:
                 await favorite.add_to_favorite(int(data.get('ad_id')), call.from_user.id)
@@ -362,6 +402,7 @@ def register(dp: Dispatcher):
     dp.register_message_handler(exact_words, state=AdvertSearch.format)
     dp.register_callback_query_handler(handle_region, state=AdvertSearch.region)
     dp.register_callback_query_handler(handle_region_letter, state=AdvertSearch.letter)
+    dp.register_callback_query_handler(search_moscow_city_selection, state=AdvertSearch.moscow)
     dp.register_callback_query_handler(search_city_selection, state=AdvertSearch.city)
     dp.register_callback_query_handler(start_searching, state=AdvertSearch.confirm)
     dp.register_message_handler(handle_complaint, state=AdvertSearch.complaint)

@@ -44,7 +44,9 @@ async def handle_category(call: types.CallbackQuery, state: FSMContext):
         else:
             data['category'] = call.data
             message_1 = await call.message.edit_text(f"<b>Вы выбрали категорию</b> <em>'{call.data}'</em>."
-                                                     f"\n\nВведите текст объявления:")
+                                                     f"\n\nВведите текст вашего объявления "
+                                                     f"и отправьте его в бота, БЕЗ ФОТОГРАФИЙ, "
+                                                     f"они будут в следующем шаге:")
             data['message_1'] = message_1.message_id
             await Creation.next()
 
@@ -374,4 +376,3 @@ def register(dp: Dispatcher):
     dp.register_message_handler(handle_caption_changes, state=Creation.caption_changes)
     dp.register_message_handler(handle_media_changes, content_types=['photo'], state=Creation.media_changes)
     dp.register_callback_query_handler(handle_delivery_changes, state=Creation.delivery_changes)
-

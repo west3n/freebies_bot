@@ -1,5 +1,3 @@
-import asyncio
-
 from database.connection import connect
 
 
@@ -34,3 +32,13 @@ async def get_cities_by_region(region):
         cur.close()
         db.close()
 
+
+async def get_cities_moscow_region(letter_1, letter_2):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT name FROM city WHERE id_region = 1 AND name BETWEEN %s AND %s ORDER BY name",
+                    (letter_1, letter_2,))
+        return [city[0] for city in cur.fetchall()]
+    finally:
+        cur.close()
+        db.close()
