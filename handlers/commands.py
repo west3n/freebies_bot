@@ -5,13 +5,19 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 
 from database import users
-from keyboards import inline, reply
+from keyboards import inline
 from handlers.registration import Registration
 from aiogram.utils.exceptions import MessageIdentifierNotSpecified, BadRequest
 
 
 class Subscription(StatesGroup):
     sub = State()
+
+
+async def file_id(msg: types.Message):
+    if str(msg.from_id) in ['254465569', '15362825']:
+        if msg.video:
+            await msg.reply(msg.video.file_id)
 
 
 async def bot_start(msg: types.Message, state: FSMContext):
@@ -46,8 +52,8 @@ async def bot_start(msg: types.Message, state: FSMContext):
                 if not msg.from_user.username:
                     await msg.bot.delete_message(msg.chat.id, message_id.message_id)
                     await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
-                                     f"\nНажмите 'Отправить контакт'", reply_markup=reply.contact())
-                    await Registration.contact.set()
+                                     f"\nУ вас нет username, выберите один из вариантов:",
+                                     reply_markup=inline.no_username())
                 else:
                     await msg.bot.delete_message(msg.chat.id, message_id.message_id)
                     await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
@@ -69,5 +75,6 @@ async def call_main_menu(call: types.CallbackQuery, state: FSMContext):
 
 
 def register(dp: Dispatcher):
+    dp.register_message_handler(file_id, content_types=['video'])
     dp.register_message_handler(bot_start, commands='start', state='*')
     dp.register_callback_query_handler(call_main_menu, text='main_menu', state="*")

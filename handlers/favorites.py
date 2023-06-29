@@ -14,12 +14,12 @@ class UserFavorites(StatesGroup):
 async def handle_favorites(call: types.CallbackQuery, state: FSMContext):
     if call.data == "favorites":
         await state.set_state(UserFavorites.favorite.state)
-        try:
-            await call.message.delete()
-        except MessageToDeleteNotFound:
-            pass
         results = await favorite.get_all_favorites(call.from_user.id)
         if results:
+            try:
+                await call.message.delete()
+            except MessageToDeleteNotFound:
+                pass
             current_index = 0
             result = results[current_index]
             media_group = []
@@ -53,7 +53,7 @@ async def handle_favorites(call: types.CallbackQuery, state: FSMContext):
                 data['username'] = username
                 data['results'] = results
         else:
-            await call.message.answer("У вас нет избранных объявлений!", reply_markup=inline.main_menu())
+            await call.message.edit_text("У вас нет избранных объявлений!", reply_markup=inline.main_menu())
             await state.finish()
 
 

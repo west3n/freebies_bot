@@ -20,26 +20,29 @@ class UserAdverts(StatesGroup):
 
 class Review(StatesGroup):
     review = State()
+    paginate = State()
 
 
 async def profile_menu(call: types.CallbackQuery):
     user_data = await users.get_user_data(call.from_user.id)
-    text = f"<b>Мой профиль:</b>\n\n<b>Уникальный ID</b> - <em>{user_data[0]}</em>" \
-           f"\n<b>Рейтинг</b> - {user_data[6]}"
+    grade_amount = await users.get_grade_amount(call.from_user.id)
+    grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
+    text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
+           f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
     if user_data[3] == "Нет контакта":
-        text += f"\n<b>Username</b> - <em>{user_data[1]}</em>"
+        text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
     else:
-        text += f"\n<b>Номер телефона</b> - <em>{user_data[3]}</em>"
-    text += f"\n<b>Имя</b> - <em>{user_data[2]}</em>" \
-            f"\n<b>Регион</b> - <em>{user_data[4]}</em>" \
-            f"\n<b>Населенный пункт</b> - <em>{user_data[5]}</em>"
+        text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
+    text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
+            f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
+            f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
     await call.message.edit_text(text, reply_markup=inline.profile_menu())
 
 
 async def change_region(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(Registration.region.state)
     await call.message.edit_text(f"Выберите первую букву своего региона:",
-                                 reply_markup=await inline.region_letter())
+                                 reply_markup=await inline.region_letter_2())
 
 
 async def my_adverts(call: types.CallbackQuery, state: FSMContext):
@@ -343,13 +346,15 @@ async def handle_rating(call: types.CallbackQuery, state: FSMContext):
                 f"Вы поставили оценку {rating} для получателя.\n\nТеперь напишите небольшой "
                 f"отзыв, не более 500 символов:")
             await Review.review.set()
-            await state.update_data({"user_id": user_id, "advert_id": advert_id, "message": mess.message_id})
+            await state.update_data(
+                {"user_id": user_id, "advert_id": advert_id, "message": mess.message_id, "rating": rating})
         if call.from_user.id == user_id:
             mess = await call.message.edit_text(
                 f"Вы поставили оценку {rating} для владельца объявления с ID {advert_id}."
                 f"\n\nТеперь напишите небольшой отзыв, не более 500 символов:")
             await Review.review.set()
-            await state.update_data({"user_id": author_id, "advert_id": advert_id, "message": mess.message_id})
+            await state.update_data(
+                {"user_id": author_id, "advert_id": advert_id, "message": mess.message_id, "rating": rating})
 
 
 async def handle_review(msg: types.Message, state: FSMContext):
@@ -368,7 +373,9 @@ async def handle_review(msg: types.Message, state: FSMContext):
             data['review'] = msg.text
             await msg.bot.delete_message(msg.chat.id, int(data.get('message')))
             await review.new_review(data.get('author_id'), data.get('user_id'), msg.text)
+            await msg.delete()
             await adverts.change_status(data.get('advert_id'), 'confirm')
+            await users.update_user_rating(data.get('user_id'), data.get('rating'))
             advert_author = await adverts.get_advert_data(data.get('advert_id'))
             if advert_author[8] == msg.from_id:
                 await msg.answer(f"Статус объявления с ID {data.get('advert_id')} успешно изменён!"
@@ -376,6 +383,62 @@ async def handle_review(msg: types.Message, state: FSMContext):
             else:
                 await msg.answer("Отзыв для автора объявления успешно сохранён!", reply_markup=inline.main_menu())
             await state.finish()
+
+
+async def get_reviews(call: types.CallbackQuery, state: FSMContext):
+    if call.data == 'main_menu_search':
+        await state.finish()
+        await profile_menu(call)
+    else:
+        results = await review.get_user_review(call.from_user.id)
+        if results:
+            current_index = 0
+            result = results[current_index]
+            author_name = await users.get_user_data(result[1])
+            text = f'<b>Отзыв {current_index + 1} из {len(results)}:</b>' \
+                   f'\n<b>ID автора отзыва:</b> {result[1]}\n<b>Полное имя:</b> {author_name[2]}' \
+                   f'\n\n<b>Текст отзыва:</b>\n<em>{result[0]}</em>'
+            await call.message.edit_text(text, reply_markup=inline.review_pagination(results, current_index))
+            await Review.paginate.set()
+            async with state.proxy() as data:
+                data['current_index'] = current_index
+        else:
+            await call.message.edit_text("На данный момент никто не оставлял на вас отзыв!",
+                                         reply_markup=inline.main_menu())
+
+
+async def handle_review_pagination(call: types.CallbackQuery, state: FSMContext):
+    if call.data == 'main_menu_search':
+        await state.finish()
+        await profile_menu(call)
+    else:
+        results = await review.get_user_review(call.from_user.id)
+        if results:
+            async with state.proxy() as data:
+                current_index = data.get('current_index')
+            result = results[current_index]
+            author_name = await users.get_user_data(result[1])
+            if call.data.startswith('prev') or call.data.startswith('next'):
+                callback_data = call.data.split(":")
+                current_index = int(callback_data[1])
+                action = callback_data[0]
+                if action == "next":
+                    if current_index + 1 < len(results):
+                        current_index += 1
+                elif action == "prev":
+                    if current_index > 0:
+                        current_index -= 1
+                result = results[current_index]
+                text = f'<b>Отзыв {current_index + 1} из {len(results)}:</b>' \
+                       f'\n<b>ID автора отзыва:</b> {result[1]}\n<b>Полное имя:</b> {author_name[2]}' \
+                       f'\n\n<b>Текст отзыва:</b>\n<em>{result[0]}</em>'
+                await call.message.edit_text(text, reply_markup=inline.review_pagination(results, current_index))
+                async with state.proxy() as data:
+                    data['current_index'] = current_index
+            elif call.data == 'main_menu_review':
+                name = call.from_user.first_name
+                await state.finish()
+                await call.message.edit_text(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
 
 
 def register(dp: Dispatcher):
@@ -388,3 +451,5 @@ def register(dp: Dispatcher):
     dp.register_message_handler(handle_agreement_status, state=UserAdverts.agreement)
     dp.register_callback_query_handler(handle_rating, lambda c: c.data.startswith('rating_'))
     dp.register_message_handler(handle_review, state=Review.review)
+    dp.register_callback_query_handler(get_reviews, text='reviews')
+    dp.register_callback_query_handler(handle_review_pagination, state=Review.paginate)

@@ -123,7 +123,8 @@ async def handle_region(call: types.CallbackQuery, state: FSMContext):
                                      reply_markup=inline.confirm_searching())
         await state.set_state(AdvertSearch.confirm.state)
     elif call.data == 'other_city':
-        await call.message.edit_text("Выберите первую букву региона поиска:", reply_markup=await inline.region_letter())
+        await call.message.edit_text("Выберите первую букву региона поиска:",
+                                     reply_markup=await inline.region_letter_3())
         await state.set_state(AdvertSearch.letter.state)
     elif call.data == 'back':
         await state.set_state(AdvertSearch.city.state)
@@ -146,17 +147,28 @@ async def handle_region(call: types.CallbackQuery, state: FSMContext):
         await state.set_state(AdvertSearch.confirm.state)
 
 
-async def handle_region_letter(call: types.CallbackQuery):
-    letter = call.data
-    await call.message.edit_text("Выберите регион поиска:",
-                                 reply_markup=await inline.region_list(letter))
-    await AdvertSearch.next()
+async def handle_region_letter(call: types.CallbackQuery, state: FSMContext):
+    if call.data == 'back_3':
+        city = await users.get_user_data(call.from_user.id)
+        async with state.proxy() as data:
+            if data.get('format') == "Любые слова":
+                await state.set_state(AdvertSearch.letter.state)
+                await call.message.edit_text("Вы выбрали поиск <b>по всем словам</b>.\n\n"
+                                             "Теперь необходимо выбрать регион:",
+                                             reply_markup=inline.search_region(city[5]))
+            else:
+                print("YOU ARE HERE")
+    else:
+        letter = call.data
+        await call.message.edit_text("Выберите регион поиска:",
+                                     reply_markup=await inline.region_list(letter))
+        await AdvertSearch.next()
 
 
 async def search_city_selection(call: types.CallbackQuery, state: FSMContext):
     if call.data == "back":
         await call.message.edit_text(f"Выберите первую букву своего региона:",
-                                     reply_markup=await inline.region_letter())
+                                     reply_markup=await inline.region_letter_1())
         await state.set_state(AdvertSearch.letter.state)
     else:
         async with state.proxy() as data:
@@ -250,8 +262,11 @@ async def start_searching(call: types.CallbackQuery, state: FSMContext):
                 media = types.InputMediaPhoto(media=file_id)
                 media_group.append(media)
             username = await adverts.get_username_by_advert_id(result[0])
+            grade_amount = await users.get_grade_amount(username[3])
+            grade_text = 'Отзывов пока нет' if grade_amount == 0 else f'Отзывов: {grade_amount}'
             text = f"<b>Объявление {current_index + 1} из {len(results)}:</b>\n\n" \
                    f"<b>ID объявления:</b> {result[0]}\n" \
+                   f"<b>Рейтинг автора:</b> {username[2]} <b>({grade_text})</b>\n" \
                    f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
                    f"<b>Категория:</b> {result[9]}\n" \
                    f"<b>Населённый пункт:</b> {result[2]}, {result[3]}\n" \

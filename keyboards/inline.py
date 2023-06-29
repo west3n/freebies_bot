@@ -2,12 +2,52 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import region, adverts
 
 
-async def region_letter() -> InlineKeyboardMarkup:
+def no_username() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('✅ Хочу посмотреть, как добавить username в Телеграм', callback_data='see_manual')],
+        [InlineKeyboardButton('❌ Не хочу добавлять username', callback_data='input_contact')],
+    ])
+    return kb
+
+
+def manual() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('✅ Добавил username', callback_data='add_username')],
+        [InlineKeyboardButton('❌ Всё равно не хочу добавлять username', callback_data='input_contact')],
+    ])
+    return kb
+
+
+async def region_letter_1() -> InlineKeyboardMarkup:
     buttons = []
     for letter in await region.get_first_letters():
         buttons.append(InlineKeyboardButton(text=letter, callback_data=letter))
     kb = InlineKeyboardMarkup(row_width=7)
     kb.add(*buttons)
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_1")
+    kb.add(button)
+    return kb
+
+
+async def region_letter_2() -> InlineKeyboardMarkup:
+    buttons = []
+    for letter in await region.get_first_letters():
+        buttons.append(InlineKeyboardButton(text=letter, callback_data=letter))
+    kb = InlineKeyboardMarkup(row_width=7)
+    kb.add(*buttons)
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_2")
+    kb.add(button)
+    return kb
+
+
+async def region_letter_3() -> InlineKeyboardMarkup:
+    buttons = []
+    for letter in await region.get_first_letters():
+        buttons.append(InlineKeyboardButton(text=letter, callback_data=letter))
+    kb = InlineKeyboardMarkup(row_width=7)
+    kb.add(*buttons)
+    button = InlineKeyboardButton(text="↩️ Назад", callback_data="back_3")
+    kb.add(button)
     return kb
 
 
@@ -45,6 +85,7 @@ def profile_menu() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton('📃 Мои объявления', callback_data='my_adverts'),
          InlineKeyboardButton('⭐ Избранное', callback_data='favorites')],
+        [InlineKeyboardButton('💬 Полученные отзывы', callback_data='reviews')],
         [InlineKeyboardButton('🔀 Изменить регион проживания', callback_data='change_region')],
         [InlineKeyboardButton('↩️ Вернуться в главное меню', callback_data='main_menu')]
     ])
@@ -177,25 +218,28 @@ def advert_menu(username, results, current_index) -> InlineKeyboardMarkup:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
     markup.add(InlineKeyboardButton('⭐️ Добавить в избранное', callback_data='favorite_advert')),
     markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
-    if current_index == 0:
+    if len(results) == 1:
         markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{len(results)}"),
-            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    elif current_index == len(results) - 1:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
         )
     else:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    markup.add()
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
     return markup
 
 
@@ -206,25 +250,28 @@ def advert_menu_favorite(username, results, current_index) -> InlineKeyboardMark
     else:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
     markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
-    if current_index == 0:
+    if len(results) == 1:
         markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{len(results)}"),
-            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    elif current_index == len(results) - 1:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
         )
     else:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    markup.add()
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
     return markup
 
 
@@ -235,25 +282,28 @@ def favorites_menu(username, results, current_index) -> InlineKeyboardMarkup:
     else:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
     markup.add(InlineKeyboardButton('❌ Убрать из избранного', callback_data='favorite_remove')),
-    if current_index == 0:
+    if len(results) == 1:
         markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{len(results)}"),
-            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    elif current_index == len(results) - 1:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
         )
     else:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    markup.add()
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
     return markup
 
 
@@ -263,25 +313,28 @@ def favorites_menu_2(username, results, current_index) -> InlineKeyboardMarkup:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
     else:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
-    if current_index == 0:
+    if len(results) == 1:
         markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{len(results)}"),
-            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    elif current_index == len(results) - 1:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
         )
     else:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    markup.add()
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
     return markup
 
 
@@ -329,25 +382,28 @@ def user_adverts(ad_id, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     markup.row(InlineKeyboardButton('🚮 Удалить объявление', callback_data=f'delete_advert_{ad_id}'))
     markup.row(InlineKeyboardButton('🔀 Изменить статус', callback_data=f'change_status_{ad_id}'))
-    if current_index == 0:
+    if len(results) == 1:
         markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{len(results)}"),
-            InlineKeyboardButton('🔽️ Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    elif current_index == len(results) - 1:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:-1")
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
         )
     else:
-        markup.row(
-            InlineKeyboardButton("◀️ Назад", callback_data=f"prev:{current_index}"),
-            InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
-            InlineKeyboardButton("Вперед ▶️", callback_data=f"next:{current_index}")
-        )
-    markup.add()
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
     return markup
 
 
@@ -385,3 +441,30 @@ def rating(agreement_id) -> InlineKeyboardMarkup:
     button = [InlineKeyboardButton("◀️ Отмена", callback_data='rating_cancel')]
     kb.add(*button)
     return kb
+
+
+def review_pagination(results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if len(results) == 1:
+        markup.row(
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
+        )
+    else:
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.отзыв ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.отзыв", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.отзыв", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.отзыв ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
+    return markup

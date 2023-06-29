@@ -97,7 +97,7 @@ async def get_username_by_advert_id(advert_id):
     try:
         cur.execute("SELECT author_id FROM freebies_advert WHERE id = %s", (advert_id, ))
         tg_id = cur.fetchone()
-        cur.execute("SELECT username, contact FROM freebies_userprofile WHERE tg = %s", (str(tg_id[0]), ))
+        cur.execute("SELECT username, contact, rating, tg FROM freebies_userprofile WHERE tg = %s", (str(tg_id[0]), ))
         return cur.fetchone()
     finally:
         db.close()

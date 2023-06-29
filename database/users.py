@@ -1,3 +1,5 @@
+import asyncio
+
 from database.connection import connect
 
 
@@ -36,8 +38,8 @@ async def add_new_user(tg, username, fullname, contact, region, city):
     if not contact:
         contact = "Нет контакта"
     try:
-        cur.execute("INSERT INTO freebies_userprofile (tg, username, fullname, contact, region, city) "
-                    "VALUES (%s, %s, %s, %s, %s, %s)",
+        cur.execute("INSERT INTO freebies_userprofile (tg, username, fullname, contact, region, city, rating) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, 0)",
                     (tg, username, fullname, contact, region, city))
         db.commit()
     finally:
@@ -112,6 +114,32 @@ async def get_agreement_data(agreement_id):
     try:
         cur.execute("SELECT ad_id, author_id, user_id FROM freebies_agreements WHERE id = %s", (agreement_id,))
         return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def update_user_rating(user_id, grade):
+    db, cur = connect()
+    try:
+        cur.execute("INSERT INTO freebies_userrating (user_id, grade) VALUES (%s, %s)", (user_id, grade,))
+        db.commit()
+        cur.execute("SELECT AVG(grade) FROM freebies_userrating WHERE user_id = %s", (user_id, ))
+        grade = cur.fetchone()
+        rounded_grade = round(grade[0], 1)
+        cur.execute("UPDATE freebies_userprofile SET rating = %s WHERE tg = %s", (rounded_grade, user_id,))
+        db.commit()
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_grade_amount(user_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT COUNT(grade) FROM freebies_userrating WHERE user_id = %s", (user_id,))
+        grade_amount = cur.fetchone()
+        return grade_amount[0]
     finally:
         db.close()
         cur.close()
