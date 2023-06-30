@@ -213,12 +213,10 @@ async def search_city_selection(call: types.CallbackQuery, state: FSMContext):
 
 
 async def start_searching(call: types.CallbackQuery, state: FSMContext):
-    if call.data == "back":
+    if call.data == 'contact_advert':
         async with state.proxy() as data:
-            if data.get('region') == 'Москва и Московская обл.':
-                await state.set_state(AdvertSearch.moscow.state)
-                await call.message.edit_text("Выберите диапазон названия вашего населённого пункта",
-                                             reply_markup=await inline.moscow_region_name_range())
+            username = await adverts.get_username_by_advert_id(data.get('ad_id'))
+            await call.message.answer(f"<b>Контакт пользователя:</b> {username[1]}")
     elif call.data == 'favorite_advert':
         async with state.proxy() as data:
             try:

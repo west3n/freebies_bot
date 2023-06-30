@@ -149,10 +149,10 @@ async def get_amount_agreements(tg_id):
         author_count = cur.fetchone()
         cur.execute("SELECT * FROM freebies_agreements WHERE author_id = %s", (tg_id,))
         author_deals = cur.fetchall()
-        cur.execute("SELECT COUNT(*) FROM freebies_agreements WHERE author_id = %s", (tg_id,))
+        cur.execute("SELECT COUNT(*) FROM freebies_agreements WHERE user_id = %s", (tg_id,))
         user_count = cur.fetchone()
         cur.execute("SELECT * FROM freebies_agreements WHERE user_id = %s", (tg_id,))
-        user_deals = cur.fetchone()
+        user_deals = cur.fetchall()
         return author_count, author_deals, user_count, user_deals
     finally:
         db.close()

@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.utils.exceptions import MessageToDeleteNotFound
+from aiogram.utils.exceptions import MessageToDeleteNotFound, BotBlocked
 
 import handlers.create
 from database import users, adverts, review
@@ -40,10 +40,20 @@ async def profile_menu(call: types.CallbackQuery):
         text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
     else:
         text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
+    if author_deals:
+        arguments_author = [str(lst[2]) for lst in author_deals]
+        arguments_author_str = 'ID объявлений: ' + ', '.join(arguments_author)
+    else:
+        arguments_author_str = 'Сделок нет'
+    if user_deals:
+        arguments_user = [str(lst[2]) for lst in user_deals]
+        arguments_user_str = 'ID объявлений: ' + ', '.join(arguments_user)
+    else:
+        arguments_user_str = 'Сделок нет'
     text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
             f"\n\n<b>🤝 Активные сделки:</b>" \
-            f"\n<b>🤴 Владелец:</b> {author_count[0]}" \
-            f"\n<b>🚚 Получатель:</b> {user_count[0]}" \
+            f"\n<b>🤴 Владелец:</b> {author_count[0]} ({arguments_author_str})" \
+            f"\n<b>🚚 Получатель:</b> {user_count[0]} ({arguments_user_str})" \
             f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
             f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
     await call.message.edit_text(text, reply_markup=inline.profile_menu())
@@ -366,12 +376,16 @@ async def change_status(call: types.CallbackQuery, state: FSMContext):
             except TypeError:
                 pass
         agreement_id, author_id, user_id = agreement_users
-        await call.bot.send_message(int(author_id), "Окей, оцените опыт взаимодействия с получателем:",
-                                    reply_markup=inline.rating(agreement_id))
-        await call.bot.send_message(
-            int(user_id), f"Владелец объявления отметил объявление с ID {data.get('ad_id')} как завершённое! "
-                          "Оцените опыт взаимодействия с владельцем объявления:",
-            reply_markup=inline.rating(agreement_id))
+        await users.delete_agreement(call.from_user.id, data.get('ad_id'))
+        try:
+            await call.bot.send_message(int(author_id), "Окей, оцените опыт взаимодействия с получателем:",
+                                        reply_markup=inline.rating(agreement_id))
+            await call.bot.send_message(
+                int(user_id), f"Владелец объявления отметил объявление с ID {data.get('ad_id')} как завершённое! "
+                              "Оцените опыт взаимодействия с владельцем объявления:",
+                reply_markup=inline.rating(agreement_id))
+        except BotBlocked:
+            print("Бот заблокирован пользователем!")
         await state.finish()
 
 
@@ -417,6 +431,11 @@ async def handle_agreement_status(msg: types.Message, state: FSMContext):
                     pass
                 except AttributeError:
                     pass
+                try:
+                    await msg.bot.send_message(
+                        int(msg.text), f"Вас отметили как получателя в объявлении с ID {data.get('ad_id')}!")
+                except BotBlocked:
+                    print("Пользователь заблокировал бота!")
                 await msg.answer(f"Статус объявления c ID {data.get('ad_id')} изменён!",
                                  reply_markup=inline.profile_menu())
                 await state.finish()
