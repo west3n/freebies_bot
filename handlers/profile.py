@@ -56,7 +56,7 @@ async def profile_menu(call: types.CallbackQuery):
             f"\n<b>🚚 Получатель:</b> {user_count[0]} ({arguments_user_str})" \
             f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
             f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
-    await call.message.edit_text(text, reply_markup=inline.profile_menu())
+    await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id))
 
 
 async def change_region(call: types.CallbackQuery):
@@ -84,7 +84,7 @@ async def handle_change_region_letter(call: types.CallbackQuery, state: FSMConte
                 f"\n<b>🚚 Получатель:</b> {user_count[0]}" \
                 f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
                 f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
-        await call.message.edit_text(text, reply_markup=inline.profile_menu())
+        await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id))
     else:
         letter = call.data
         await call.message.edit_text("Выберите свой регион:",
@@ -310,7 +310,7 @@ async def delete_advert(call: types.CallbackQuery, state: FSMContext):
             except TypeError:
                 pass
         await adverts.delete_advert(data.get('ad_id'))
-        await call.message.edit_text("Объявление удалено!", reply_markup=inline.profile_menu())
+        await call.message.edit_text("Объявление удалено!", reply_markup=await inline.profile_menu(call.from_user.id))
         await state.finish()
     else:
         message = await call.message.edit_text("Окей, можете продолжать просмотр объявлений")
@@ -353,7 +353,7 @@ async def change_status(call: types.CallbackQuery, state: FSMContext):
         async with state.proxy() as data:
             await call.message.edit_text(f"Окей, объявление c ID {data.get('ad_id')} "
                                          f"снова доступно для всех пользователей!",
-                                         reply_markup=inline.profile_menu())
+                                         reply_markup=await inline.profile_menu(call.from_user.id))
             await adverts.change_status(data.get('ad_id'), 'active')
             await users.delete_agreement(call.from_user.id, data.get('ad_id'))
             await state.finish()
@@ -437,7 +437,7 @@ async def handle_agreement_status(msg: types.Message, state: FSMContext):
                 except BotBlocked:
                     print("Пользователь заблокировал бота!")
                 await msg.answer(f"Статус объявления c ID {data.get('ad_id')} изменён!",
-                                 reply_markup=inline.profile_menu())
+                                 reply_markup=await inline.profile_menu(msg.from_user.id))
                 await state.finish()
 
 
@@ -550,6 +550,15 @@ async def handle_review_pagination(call: types.CallbackQuery, state: FSMContext)
                                              reply_markup=inline.main_menu())
 
 
+async def new_username(call: types.CallbackQuery):
+    if call.from_user.username:
+        await users.update_username(call.from_user.username, call.from_user.id)
+        await call.answer('Ваш username обновлён!')
+        await call.message.edit_reply_markup(await inline.profile_menu(call.from_user.id))
+    else:
+        await call.answer('Для корректной работы этой функции вам необходимо создать username!', show_alert=True)
+
+
 def register(dp: Dispatcher):
     dp.register_callback_query_handler(profile_menu, text='profile')
     dp.register_callback_query_handler(change_region, text='change_region')
@@ -566,3 +575,4 @@ def register(dp: Dispatcher):
     dp.register_message_handler(handle_review, state=Review.review)
     dp.register_callback_query_handler(get_reviews, text='reviews')
     dp.register_callback_query_handler(handle_review_pagination, state=Review.paginate)
+    dp.register_callback_query_handler(new_username, text='username')

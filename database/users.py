@@ -60,7 +60,7 @@ async def get_user_data(tg_id):
 async def update_region(region, city, tg_id):
     db, cur = connect()
     try:
-        cur.execute("UPDATE freebies_userprofile SET region = %s, city = %s WHERE tg = %s", (region, city, tg_id))
+        cur.execute("UPDATE freebies_userprofile SET region = %s, city = %s WHERE tg = %s", (region, city, tg_id, ))
         db.commit()
     finally:
         db.close()
@@ -140,6 +140,16 @@ async def get_grade_amount(user_id):
         cur.execute("SELECT COUNT(grade) FROM freebies_userrating WHERE user_id = %s", (user_id,))
         grade_amount = cur.fetchone()
         return grade_amount[0]
+    finally:
+        db.close()
+        cur.close()
+
+
+async def update_username(username, tg_id):
+    db, cur = connect()
+    try:
+        cur.execute("UPDATE freebies_userprofile SET username = %s WHERE tg = %s", (username, tg_id, ))
+        db.commit()
     finally:
         db.close()
         cur.close()

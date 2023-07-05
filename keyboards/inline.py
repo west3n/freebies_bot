@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from database import region, adverts
+from database import region, adverts, users
 
 
 def no_username() -> InlineKeyboardMarkup:
@@ -68,14 +68,25 @@ def main_menu() -> InlineKeyboardMarkup:
     return kb
 
 
-def profile_menu() -> InlineKeyboardMarkup:
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton('📃 Мои объявления', callback_data='my_adverts'),
-         InlineKeyboardButton('⭐ Избранное', callback_data='favorites')],
-        [InlineKeyboardButton('💬 Полученные отзывы', callback_data='reviews')],
-        [InlineKeyboardButton('🔀 Изменить регион проживания', callback_data='change_region')],
-        [InlineKeyboardButton('↩️ Вернуться в главное меню', callback_data='main_menu')]
-    ])
+async def profile_menu(tg_id) -> InlineKeyboardMarkup:
+    username = await users.get_user_data(tg_id)
+    if username[1]:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton('📃 Мои объявления', callback_data='my_adverts'),
+             InlineKeyboardButton('⭐ Избранное', callback_data='favorites')],
+            [InlineKeyboardButton('💬 Полученные отзывы', callback_data='reviews')],
+            [InlineKeyboardButton('🔀 Изменить регион проживания', callback_data='change_region')],
+            [InlineKeyboardButton('↩️ Вернуться в главное меню', callback_data='main_menu')]
+        ])
+    else:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton('📃 Мои объявления', callback_data='my_adverts'),
+             InlineKeyboardButton('⭐ Избранное', callback_data='favorites')],
+            [InlineKeyboardButton('💬 Полученные отзывы', callback_data='reviews')],
+            [InlineKeyboardButton('💡 У меня появился username', callback_data='username')],
+            [InlineKeyboardButton('🔀 Изменить регион проживания', callback_data='change_region')],
+            [InlineKeyboardButton('↩️ Вернуться в главное меню', callback_data='main_menu')]
+        ])
     return kb
 
 
