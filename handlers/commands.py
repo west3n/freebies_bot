@@ -1,4 +1,3 @@
-
 import decouple
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
@@ -51,9 +50,12 @@ async def bot_start(msg: types.Message, state: FSMContext):
             if msg.from_user.id not in await users.get_users_list():
                 if not msg.from_user.username:
                     await msg.bot.delete_message(msg.chat.id, message_id.message_id)
-                    await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
-                                     f"\nУ вас нет username, выберите один из вариантов:",
-                                     reply_markup=inline.no_username())
+                    await msg.answer(
+                        f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"
+                        f"\nУ вас нет username, выберите один из вариантов (настоятельно рекомендуем вам "
+                        f"зарегистрировать username, во избежания попадания вашего номера телефона в "
+                        f"руки мошенников):",
+                        reply_markup=inline.no_username())
                 else:
                     await msg.bot.delete_message(msg.chat.id, message_id.message_id)
                     await msg.answer(f"{name}, добро пожаловать в Freebies Bot! Давайте начнём регистрацию!"

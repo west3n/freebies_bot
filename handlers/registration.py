@@ -1,13 +1,11 @@
-# import asyncio
-# import re
-# from aiogram.utils.exceptions import MessageToDeleteNotFound
+import asyncio
+import re
 import decouple
-
 
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-
+from aiogram.utils.exceptions import MessageToDeleteNotFound
 from keyboards import inline, reply
 from database import users
 
@@ -20,20 +18,12 @@ class Registration(StatesGroup):
     finish = State()
 
 
-# def is_link(text):
-#     pattern = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-#     return re.search(pattern, text) is not None
-#
-#
-# def is_email(text):
-#     pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-#     return re.search(pattern, text) is not None
-
-
 async def see_manual(call: types.CallbackQuery):
     video = decouple.config('MANUAL')
+    video_2 = decouple.config('MANUAL_2')
     await call.message.delete()
-    await call.message.answer_video(video, caption="Как создать username в Телеграме?",
+    await call.message.answer_video(video_2, caption="Как создать username в Телеграме на телефоне?")
+    await call.message.answer_video(video, caption="Как создать username в Телеграме на компьютере?",
                                     reply_markup=inline.manual())
 
 
@@ -49,16 +39,12 @@ async def add_username(call: types.CallbackQuery):
 
 async def input_contact(call: types.CallbackQuery, state: FSMContext):
     await call.message.delete()
-    await call.message.answer("Окей, вы можете оставить свой номер телефона, нажав на кнопку ниже:",
-                              reply_markup=reply.contact())
-    # message = await call.message.answer(
-    #     'Окей, вы можете оставить свой номер телефона, нажав на кнопку ниже или оставить другой контакт для связи, '
-    #     '(ссылку на другие соц.сети, электронную почту или другой номер телефона)\nПримеры правильных форматов:\n'
-    #     '- Для ссылки: https://example.com\n- Для адреса электронной почты: example@example.com\n'
-    #     '-Для номера телефона +79993210783, букв быть не должно', reply_markup=reply.contact())
+    message = await call.message.answer(
+        'Окей, вы можете оставить свой номер телефона, нажав на кнопку ниже или отправив номер в формате:\n'
+        '+79993210783 или 79993210783, букв быть не должно', reply_markup=reply.contact())
     await Registration.contact.set()
-    # async with state.proxy() as data:
-    #     data['message'] = message
+    async with state.proxy() as data:
+        data['message'] = message
 
 
 async def handle_user_contact(msg: types.Message, state: FSMContext):
@@ -69,101 +55,60 @@ async def handle_user_contact(msg: types.Message, state: FSMContext):
         await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
                          reply_markup=await inline.region_letter_1())
         await Registration.next()
-    # elif msg.text:
-    #     if msg.text.isdigit():
-    #         async with state.proxy() as data:
-    #             data['contact'] = msg.text
-    #             delete_message = data.get('message')
-    #             delete_message_2 = data.get('message_2')
-    #         try:
-    #             await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
-    #             await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
-    #         except MessageToDeleteNotFound:
-    #             pass
-    #         except AttributeError:
-    #             pass
-    #         await msg.delete()
-    #         message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
-    #         await msg.bot.send_chat_action(msg.chat.id, 'typing')
-    #         await asyncio.sleep(2)
-    #         await msg.bot.delete_message(msg.chat.id, message.message_id)
-    #         await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
-    #                          reply_markup=await inline.region_letter())
-    #         await msg.edit_reply_markup(reply_markup=reply.kb_remove)
-    #     elif msg.text.startswith("+"):
-    #         number = msg.text.split("+")[1]
-    #         if number.isdigit():
-    #             async with state.proxy() as data:
-    #                 data['contact'] = msg.text
-    #                 delete_message = data.get('message')
-    #                 delete_message_2 = data.get('message_2')
-    #             try:
-    #                 await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
-    #                 await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
-    #             except MessageToDeleteNotFound:
-    #                 pass
-    #             except AttributeError:
-    #                 pass
-    #             await msg.delete()
-    #             message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
-    #             await msg.bot.send_chat_action(msg.chat.id, 'typing')
-    #             await asyncio.sleep(2)
-    #             await msg.bot.delete_message(msg.chat.id, message.message_id)
-    #             await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
-    #                              reply_markup=await inline.region_letter())
-    #         else:
-    #             await msg.answer("Вы ввели неверный формат. Пожалуйста, введите правильный формат.\n\n"
-    #                              "Примеры правильного формата:\n"
-    #                              "+79993210783, букв быть не должно", reply_markup=reply.kb_remove)
-    #     elif is_link(msg.text):
-    #         async with state.proxy() as data:
-    #             data['contact'] = msg.text
-    #             delete_message = data.get('message')
-    #             delete_message_2 = data.get('message_2')
-    #         try:
-    #             await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
-    #             await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
-    #         except MessageToDeleteNotFound:
-    #             pass
-    #         except AttributeError:
-    #             pass
-    #         await msg.delete()
-    #         message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
-    #         await msg.bot.send_chat_action(msg.chat.id, 'typing')
-    #         await asyncio.sleep(2)
-    #         await msg.bot.delete_message(msg.chat.id, message.message_id)
-    #         await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
-    #                          reply_markup=await inline.region_letter())
-    #         await Registration.next()
-    #     elif is_email(msg.text):
-    #         async with state.proxy() as data:
-    #             data['contact'] = msg.text
-    #             delete_message = data.get('message')
-    #             delete_message_2 = data.get('message_2')
-    #         try:
-    #             await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
-    #             await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
-    #         except MessageToDeleteNotFound:
-    #             pass
-    #         except AttributeError:
-    #             pass
-    #         await msg.delete()
-    #         message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
-    #         await msg.bot.send_chat_action(msg.chat.id, 'typing')
-    #         await asyncio.sleep(2)
-    #         await msg.bot.delete_message(msg.chat.id, message.message_id)
-    #         await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
-    #                          reply_markup=await inline.region_letter())
-    #         await Registration.next()
-    #     else:
-    #         await msg.delete()
-    #         message_2 = await msg.answer("Вы ввели неверный формат. Пожалуйста, введите правильный формат.\n\n"
-    #                                      "Примеры правильных форматов:\n"
-    #                                      "- Для ссылки: https://example.com\n"
-    #                                      "- Для адреса электронной почты: example@example.com",
-    #                                      reply_markup=reply.kb_remove)
-    #         async with state.proxy() as data:
-    #             data['message_2'] = message_2
+    elif msg.text:
+        if msg.text.isdigit():
+            async with state.proxy() as data:
+                data['contact'] = msg.text
+                delete_message = data.get('message')
+                delete_message_2 = data.get('message_2')
+            try:
+                await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
+                await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
+            except MessageToDeleteNotFound:
+                pass
+            except AttributeError:
+                pass
+            await msg.delete()
+            message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
+            await msg.bot.send_chat_action(msg.chat.id, 'typing')
+            await asyncio.sleep(2)
+            await msg.bot.delete_message(msg.chat.id, message.message_id)
+            await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
+                             reply_markup=await inline.region_letter_1())
+            await msg.edit_reply_markup(reply_markup=reply.kb_remove)
+        elif msg.text.startswith("+"):
+            number = msg.text.split("+")[1]
+            if number.isdigit():
+                async with state.proxy() as data:
+                    data['contact'] = msg.text
+                    delete_message = data.get('message')
+                    delete_message_2 = data.get('message_2')
+                try:
+                    await msg.bot.delete_message(msg.chat.id, delete_message.message_id)
+                    await msg.bot.delete_message(msg.chat.id, delete_message_2.message_id)
+                except MessageToDeleteNotFound:
+                    pass
+                except AttributeError:
+                    pass
+                await msg.delete()
+                message = await msg.answer('Загружаю регионы...', reply_markup=reply.kb_remove)
+                await msg.bot.send_chat_action(msg.chat.id, 'typing')
+                await asyncio.sleep(2)
+                await msg.bot.delete_message(msg.chat.id, message.message_id)
+                await msg.answer(f"Отлично! Теперь выберите первую букву своего региона:",
+                                 reply_markup=await inline.region_letter_1())
+            else:
+                await msg.answer("Вы ввели неверный формат. Пожалуйста, введите правильный формат.\n\n"
+                                 "Примеры правильного формата:\n"
+                                 "+79993210783 или 79993210783, букв быть не должно", reply_markup=reply.kb_remove)
+        else:
+            await msg.delete()
+            message_2 = await msg.answer("Вы ввели неверный формат. Пожалуйста, введите правильный формат.\n\n"
+                                         "Примеры правильного формата:\n"
+                                         "+79993210783 или 79993210783, букв быть не должно",
+                                         reply_markup=reply.kb_remove)
+            async with state.proxy() as data:
+                data['message_2'] = message_2
 
 
 async def handle_region_letter(call: types.CallbackQuery, state: FSMContext):
@@ -232,8 +177,8 @@ async def finish_registration(call: types.CallbackQuery, state: FSMContext):
 
 
 def register(dp: Dispatcher):
-    # dp.register_callback_query_handler(see_manual, text='see_manual')
-    # dp.register_callback_query_handler(add_username, text='add_username')
+    dp.register_callback_query_handler(see_manual, text='see_manual')
+    dp.register_callback_query_handler(add_username, text='add_username')
     dp.register_callback_query_handler(input_contact, text='input_contact')
     dp.register_message_handler(handle_user_contact, content_types=['text', 'contact'], state=Registration.contact)
     dp.register_callback_query_handler(handle_region_letter, state=Registration.region)
