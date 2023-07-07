@@ -30,7 +30,7 @@ async def start_creation(call: types.CallbackQuery):
     advert_amount = await adverts.get_amount_by_date_and_user(datetime.datetime.now().date(), call.from_user.id)
     if int(advert_amount[0]) >= 2:
         await call.message.edit_text("В день можно разместить не больше 2-х объявлений! Попробуйте завтра!",
-                                     reply_markup=inline.profile_menu())
+                                     reply_markup=await inline.profile_menu(call.from_user.id))
     else:
         await call.message.edit_text("Выберите категорию объявления:", reply_markup=await inline.get_category_list())
         await Creation.category.set()
@@ -64,19 +64,24 @@ async def handle_caption(msg: types.Message, state: FSMContext):
             await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
                              f"\n\nПопробуйте заново, избегая запрещённых слов")
         else:
-            data['caption'] = msg.text
-            await msg.delete()
-            try:
-                await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
-            except MessageToDeleteNotFound:
-                pass
-            message_2 = await msg.answer(f"<b>Категория</b> - <em>'{data.get('category')}'</em>"
-                                         f"\n\n<b>Описание</b> - <em>'{msg.text}'</em>"
-                                         f"\n\nТеперь необходимо выбрать количество фотографий, "
-                                         f"которые вы хотите прикрепить к объявлению",
-                                         reply_markup=inline.media_amount())
-            data['message_2'] = message_2.message_id
-            await Creation.next()
+            if len(msg.text) > 1024:
+                await msg.delete()
+                await msg.answer(f"Длина текста не должна превышать 1024 символа!"
+                                 f"\nКоличество символов в вашем тексте: {len(msg.text)}")
+            else:
+                data['caption'] = msg.text
+                await msg.delete()
+                try:
+                    await msg.bot.delete_message(msg.chat.id, int(data.get('message_1')))
+                except MessageToDeleteNotFound:
+                    pass
+                message_2 = await msg.answer(f"<b>Категория</b> - <em>'{data.get('category')}'</em>"
+                                             f"\n\n<b>Описание</b> - <em>'{msg.text}'</em>"
+                                             f"\n\nТеперь необходимо выбрать количество фотографий, "
+                                             f"которые вы хотите прикрепить к объявлению",
+                                             reply_markup=inline.media_amount())
+                data['message_2'] = message_2.message_id
+                await Creation.next()
 
 
 async def handle_media_amount(call: types.CallbackQuery, state: FSMContext):

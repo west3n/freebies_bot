@@ -1,3 +1,5 @@
+import asyncio
+
 from database.connection import connect
 
 
@@ -154,6 +156,21 @@ async def get_amount_agreements(tg_id):
         cur.execute("SELECT * FROM freebies_agreements WHERE user_id = %s", (tg_id,))
         user_deals = cur.fetchall()
         return author_count, author_deals, user_count, user_deals
+    finally:
+        db.close()
+        cur.close()
+
+
+async def get_receiver_adverts(tg_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT ad_id FROM freebies_agreements WHERE user_id = %s", (tg_id, ))
+        ad_ids = [ad_id[0] for ad_id in cur.fetchall()]
+        if ad_ids:
+            cur.execute("SELECT * FROM freebies_advert WHERE id IN %s", (tuple(ad_ids),))
+            return cur.fetchall()
+        else:
+            return None
     finally:
         db.close()
         cur.close()

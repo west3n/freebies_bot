@@ -502,3 +502,43 @@ async def moscow_city_list(name_range) -> InlineKeyboardMarkup:
     button = InlineKeyboardButton(text="↩️ Назад", callback_data="back")
     kb.add(button)
     return kb
+
+
+def adverts_menu() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton('📝 Создатель', callback_data='my_adverts_author'),
+         InlineKeyboardButton('🧘 Получатель', callback_data='my_adverts_receiver')],
+        [InlineKeyboardButton('↩️ Назад', callback_data='profile')]
+    ])
+    return kb
+
+
+def receiver_adverts(username, results, current_index) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    if len(results) == 1:
+        markup.row(
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
+        )
+    else:
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
+    return markup

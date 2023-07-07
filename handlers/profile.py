@@ -17,6 +17,10 @@ class UserAdverts(StatesGroup):
     agreement = State()
 
 
+class ReceiverAdverts(StatesGroup):
+    advert = State()
+
+
 class Review(StatesGroup):
     review = State()
     paginate = State()
@@ -36,7 +40,7 @@ async def profile_menu(call: types.CallbackQuery):
     grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
     text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
            f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
-    if user_data[3] == "Нет контакта":
+    if user_data[1]:
         text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
     else:
         text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
@@ -143,7 +147,11 @@ async def finish_change_region(call: types.CallbackQuery, state: FSMContext):
             await state.finish()
 
 
-async def my_adverts(call: types.CallbackQuery, state: FSMContext):
+async def my_adverts(call: types.CallbackQuery):
+    await call.message.edit_text("Выберите один из вариантов:", reply_markup=inline.adverts_menu())
+
+
+async def my_adverts_author(call: types.CallbackQuery, state: FSMContext):
     results = await adverts.get_user_adverts(call.from_user.id)
     if results:
         await call.message.delete()
@@ -161,9 +169,17 @@ async def my_adverts(call: types.CallbackQuery, state: FSMContext):
         for key, value in status_keys.items():
             if result[10] == key:
                 status = value
+        receiver = await users.get_agreement_users(result[0])
+        receiver_username = await users.get_user_data(receiver[2])
+        receiver_username = "@" + receiver_username[1] if receiver_username[1] else 'username отсутствует'
+        if status == 'Найден получатель':
+            status_text = f"<b>Статус:</b> {status}\n" \
+                          f"<b>Получатель:</b> {receiver[2]} ({receiver_username})\n"
+        else:
+            status_text = f"<b>Статус:</b> {status}\n"
         text = f"<b>Мои объявления: {current_index + 1} из {len(results)}</b>\n\n" \
                f"<b>ID объявления:</b> {result[0]}\n" \
-               f"<b>Статус:</b> {status}\n" \
+               f'{status_text}' \
                f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
                f"<b>Категория:</b> {result[9]}\n" \
                f"<b>Населённый пункт:</b> {result[2]}, {result[3]}\n" \
@@ -192,7 +208,7 @@ async def my_adverts(call: types.CallbackQuery, state: FSMContext):
         await call.message.edit_text("У вас нет объявлений! Создадим новое?", reply_markup=inline.user_adverts_empty())
 
 
-async def paginate_my_adverts(call: types.CallbackQuery, state: FSMContext):
+async def paginate_my_adverts_author(call: types.CallbackQuery, state: FSMContext):
     if call.data.startswith('delete_advert_'):
         async with state.proxy() as data:
             await call.message.answer(f'Вы действительно хотите удалить объявление с ID {data.get("ad_id")}?',
@@ -284,6 +300,123 @@ async def paginate_my_adverts(call: types.CallbackQuery, state: FSMContext):
             cap = await call.message.answer(
                 text, reply_markup=inline.user_adverts(data.get('ad_id'), results, current_index))
             await UserAdverts.advert.set()
+            async with state.proxy() as data:
+                data['media_group'] = media_group
+                data['cap'] = cap
+                data['ad_id'] = result[0]
+                data['current_index'] = current_index
+                data['username'] = username
+                data['result'] = result
+
+
+async def my_adverts_receiver(call: types.CallbackQuery, state: FSMContext):
+    results = await adverts.get_receiver_adverts(call.from_user.id)
+    if results:
+        await call.message.delete()
+        current_index = 0
+        result = results[current_index]
+        media_group = []
+        file_ids = result[4].strip().split("\n")
+        for file_id in file_ids:
+            media = types.InputMediaPhoto(media=file_id)
+            media_group.append(media)
+        username = await adverts.get_username_by_advert_id(result[0])
+        user_name = "@" + username[0] if username[0] else "username отсутствует"
+        text = f"<b>Объявления, в которых я отмечен как получатель: {current_index + 1} из {len(results)}</b>\n\n" \
+               f"<b>ID объявления:</b> {result[0]}\n" \
+               f"<b>Автор объявления:</b> {result[8]} ({user_name})\n" \
+               f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
+               f"<b>Категория:</b> {result[9]}\n" \
+               f"<b>Населённый пункт:</b> {result[2]}, {result[3]}\n" \
+               f"<b>Описание:</b> {result[5]}"
+        if not result[6]:
+            text += f'\n\nВещи можно забрать <b>только через самовывоз</b>'
+        else:
+            text += f'\n\nВещи можно забрать <b>доставкой или через самовывоз</b>'
+            if result[7] == "Author":
+                text += f"\n<b>Владелец берёт на себя расходы на доставку</b>"
+            elif result[7] == "User":
+                text += f"\n<b>Расходы на доставку берёт на себя получатель</b>"
+        media_group = await call.message.answer_media_group(media_group)
+        cap = await call.message.answer(text, reply_markup=inline.receiver_adverts(username[0], results, current_index))
+        await ReceiverAdverts.advert.set()
+        async with state.proxy() as data:
+            data['media_group'] = media_group
+            data['cap'] = cap
+            data['ad_id'] = result[0]
+            data['current_index'] = current_index
+            data['username'] = username
+            data['result'] = result
+    else:
+        await call.message.edit_text("У вас нет объявлений, где вы отмечены как получатель!",
+                                     reply_markup=await inline.profile_menu(call.from_user.id))
+
+
+async def paginate_my_adverts_receiver(call: types.CallbackQuery, state: FSMContext):
+    if call.data == 'main_menu_search':
+        name = call.from_user.first_name
+        async with state.proxy() as data:
+            for message in data.get('media_group'):
+                await call.bot.delete_message(call.message.chat.id, int(message.message_id))
+        async with state.proxy() as data:
+            message_id = data.get('cap')
+            await call.bot.delete_message(call.message.chat.id, int(message_id.message_id))
+        await state.finish()
+        await call.message.answer(f"{name}, добро пожаловать в Freebies Bot!", reply_markup=inline.main_menu())
+    else:
+        async with state.proxy() as data:
+            try:
+                for message in data.get('media_group'):
+                    try:
+                        await call.bot.delete_message(call.message.chat.id, int(message.message_id))
+                    except MessageToDeleteNotFound:
+                        pass
+                try:
+                    message_id = data.get('cap')
+                    await call.bot.delete_message(call.message.chat.id, int(message_id.message_id))
+                except MessageToDeleteNotFound:
+                    pass
+            except TypeError:
+                pass
+        results = await adverts.get_receiver_adverts(call.from_user.id)
+        if results:
+            current_index = data.get('current_index')
+            result = results[current_index]
+            if call.data.startswith('prev') or call.data.startswith('next'):
+                callback_data = call.data.split(":")
+                action = callback_data[0]
+                if action == "next":
+                    if current_index + 1 < len(results):
+                        current_index += 1
+                elif action == "prev":
+                    current_index -= 1 if current_index > 0 else 0
+                result = results[current_index]
+            media_group = []
+            file_ids = result[4].strip().split("\n")
+            for file_id in file_ids:
+                media = types.InputMediaPhoto(media=file_id)
+                media_group.append(media)
+            username = await adverts.get_username_by_advert_id(result[0])
+            user_name = "@" + username[0] if username[0] else "username отсутствует"
+            text = f"<b>Объявления, в которых я отмечен как получатель: {current_index + 1} из {len(results)}</b>\n\n" \
+                   f"<b>ID объявления:</b> {result[0]}\n" \
+                   f"<b>Автор объявления:</b> {result[8]} ({user_name})\n" \
+                   f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
+                   f"<b>Категория:</b> {result[9]}\n" \
+                   f"<b>Населённый пункт:</b> {result[2]}, {result[3]}\n" \
+                   f"<b>Описание:</b> {result[5]}"
+            if not result[6]:
+                text += f'\n\nВещи можно забрать <b>только через самовывоз</b>'
+            else:
+                text += f'\n\nВещи можно забрать <b>доставкой или через самовывоз</b>'
+                if result[7] == "Author":
+                    text += f"\n<b>Владелец берёт на себя расходы на доставку</b>"
+                elif result[7] == "User":
+                    text += f"\n<b>Расходы на доставку берёт на себя получатель</b>"
+            media_group = await call.message.answer_media_group(media_group)
+            cap = await call.message.answer(
+                text, reply_markup=inline.receiver_adverts(username[0], results, current_index))
+            await ReceiverAdverts.advert.set()
             async with state.proxy() as data:
                 data['media_group'] = media_group
                 data['cap'] = cap
@@ -567,7 +700,10 @@ def register(dp: Dispatcher):
     dp.register_callback_query_handler(change_city_selection, state=ChangeRegion.city)
     dp.register_callback_query_handler(finish_change_region, state=ChangeRegion.finish)
     dp.register_callback_query_handler(my_adverts, text='my_adverts')
-    dp.register_callback_query_handler(paginate_my_adverts, state=UserAdverts.advert)
+    dp.register_callback_query_handler(my_adverts_author, text='my_adverts_author')
+    dp.register_callback_query_handler(paginate_my_adverts_author, state=UserAdverts.advert)
+    dp.register_callback_query_handler(my_adverts_receiver, text='my_adverts_receiver')
+    dp.register_callback_query_handler(paginate_my_adverts_receiver, state=ReceiverAdverts.advert)
     dp.register_callback_query_handler(delete_advert, state=UserAdverts.delete)
     dp.register_callback_query_handler(change_status, state=UserAdverts.status)
     dp.register_message_handler(handle_agreement_status, state=UserAdverts.agreement)
