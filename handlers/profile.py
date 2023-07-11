@@ -19,6 +19,8 @@ class UserAdverts(StatesGroup):
 
 class ReceiverAdverts(StatesGroup):
     advert = State()
+    grade = State()
+    review = State()
 
 
 class Review(StatesGroup):
@@ -37,13 +39,21 @@ async def profile_menu(call: types.CallbackQuery):
     user_data = await users.get_user_data(call.from_user.id)
     grade_amount = await users.get_grade_amount(call.from_user.id)
     author_count, author_deals, user_count, user_deals = await adverts.get_amount_agreements(call.from_user.id)
-    grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
-    text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
-           f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
+    grade_text = '\(оценок пока что нет\)' if grade_amount == 0 else f'\(количество оценок: {grade_amount}\)'
+    user_data = list(user_data)
+    user_data[6] = str(user_data[6])
+    for i in range(0, 7):
+        if isinstance(user_data[i], str):
+            special_chars = ['_', '.', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}']
+            for char in special_chars:
+                user_data[i] = user_data[i].replace(char, '\\' + char)
+    user_data = tuple(user_data)
+    text = f"**Мой профиль:**\n\n**🆔 Уникальный ID:** _`{user_data[0]}` \(копируется при касании\)_" \
+           f"\n**⭐️ Рейтинг:** _{user_data[6]} {grade_text}_"
     if user_data[1]:
-        text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
+        text += f"\n\n**🤖 Username**: _{user_data[1]}_"
     else:
-        text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
+        text += f"\n\n**📞 Контакт**: _{user_data[3]}_"
     if author_deals:
         arguments_author = [str(lst[2]) for lst in author_deals]
         arguments_author_str = 'ID объявлений: ' + ', '.join(arguments_author)
@@ -54,13 +64,14 @@ async def profile_menu(call: types.CallbackQuery):
         arguments_user_str = 'ID объявлений: ' + ', '.join(arguments_user)
     else:
         arguments_user_str = 'Сделок нет'
-    text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
-            f"\n\n<b>🤝 Активные сделки:</b>" \
-            f"\n<b>🤴 Владелец:</b> {author_count[0]} ({arguments_author_str})" \
-            f"\n<b>🚚 Получатель:</b> {user_count[0]} ({arguments_user_str})" \
-            f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
-            f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
-    await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id))
+    text += f"\n**😊 Имя**: _{user_data[2]}_" \
+            f"\n\n**🤝 Активные сделки:**" \
+            f"\n**🤴 Владелец:** _{author_count[0]} \({arguments_author_str}\)_" \
+            f"\n**🚚 Получатель:** _{user_count[0]} \({arguments_user_str}\)_" \
+            f"\n\n**🌆 Регион**: _{user_data[4]}_" \
+            f"\n**🏠 Населенный пункт**: _{user_data[5]}_"
+    await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id),
+                                 parse_mode=types.ParseMode.MARKDOWN_V2)
 
 
 async def change_region(call: types.CallbackQuery):
@@ -75,20 +86,39 @@ async def handle_change_region_letter(call: types.CallbackQuery, state: FSMConte
         user_data = await users.get_user_data(call.from_user.id)
         grade_amount = await users.get_grade_amount(call.from_user.id)
         author_count, author_deals, user_count, user_deals = await adverts.get_amount_agreements(call.from_user.id)
-        grade_text = '(оценок пока что нет)' if grade_amount == 0 else f'(количество оценок: {grade_amount})'
-        text = f"<b>Мой профиль:</b>\n\n<b>🆔 Уникальный ID:</b> <em>{user_data[0]}</em>" \
-               f"\n<b>⭐️ Рейтинг:</b> {user_data[6]} {grade_text}"
-        if user_data[3] == "Нет контакта":
-            text += f"\n\n<b>🤖 Username</b>: <em>{user_data[1]}</em>"
+        grade_text = '\(оценок пока что нет\)' if grade_amount == 0 else f'\(количество оценок: {grade_amount}\)'
+        user_data = list(user_data)
+        user_data[6] = str(user_data[6])
+        for i in range(0, 7):
+            if isinstance(user_data[i], str):
+                special_chars = ['_', '.', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}']
+                for char in special_chars:
+                    user_data[i] = user_data[i].replace(char, '\\' + char)
+        user_data = tuple(user_data)
+        text = f"**Мой профиль:**\n\n**🆔 Уникальный ID:** _`{user_data[0]}` \(копируется при касании\)_" \
+               f"\n**⭐️ Рейтинг:** _{user_data[6]} {grade_text}_"
+        if user_data[1]:
+            text += f"\n\n**🤖 Username**: _{user_data[1]}_"
         else:
-            text += f"\n\n<b>📞 Контакт</b>: <em>{user_data[3]}</em>"
-        text += f"\n<b>😊 Имя</b>: <em>{user_data[2]}</em>" \
-                f"\n\n<b>🤝 Активные сделки:</b>" \
-                f"\n<b>🤴 Владелец:</b> {author_count[0]}" \
-                f"\n<b>🚚 Получатель:</b> {user_count[0]}" \
-                f"\n\n<b>🌆 Регион</b>: <em>{user_data[4]}</em>" \
-                f"\n<b>🏠 Населенный пункт</b>: <em>{user_data[5]}</em>"
-        await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id))
+            text += f"\n\n**📞 Контакт**: _{user_data[3]}_"
+        if author_deals:
+            arguments_author = [str(lst[2]) for lst in author_deals]
+            arguments_author_str = 'ID объявлений: ' + ', '.join(arguments_author)
+        else:
+            arguments_author_str = 'Сделок нет'
+        if user_deals:
+            arguments_user = [str(lst[2]) for lst in user_deals]
+            arguments_user_str = 'ID объявлений: ' + ', '.join(arguments_user)
+        else:
+            arguments_user_str = 'Сделок нет'
+        text += f"\n**😊 Имя**: _{user_data[2]}_" \
+                f"\n\n**🤝 Активные сделки:**" \
+                f"\n**🤴 Владелец:** _{author_count[0]} \({arguments_author_str}\)_" \
+                f"\n**🚚 Получатель:** _{user_count[0]} \({arguments_user_str}\)_" \
+                f"\n\n**🌆 Регион**: _{user_data[4]}_" \
+                f"\n**🏠 Населенный пункт**: _{user_data[5]}_"
+        await call.message.edit_text(text, reply_markup=await inline.profile_menu(call.from_user.id),
+                                     parse_mode=types.ParseMode.MARKDOWN_V2)
     else:
         letter = call.data
         await call.message.edit_text("Выберите свой регион:",
@@ -169,10 +199,10 @@ async def my_adverts_author(call: types.CallbackQuery, state: FSMContext):
         for key, value in status_keys.items():
             if result[10] == key:
                 status = value
-        receiver = await users.get_agreement_users(result[0])
-        receiver_username = await users.get_user_data(receiver[2])
-        receiver_username = "@" + receiver_username[1] if receiver_username[1] else 'username отсутствует'
         if status == 'Найден получатель':
+            receiver = await users.get_agreement_users(result[0])
+            receiver_username = await users.get_user_data(receiver[2])
+            receiver_username = "@" + receiver_username[1] if receiver_username[1] else 'username отсутствует'
             status_text = f"<b>Статус:</b> {status}\n" \
                           f"<b>Получатель:</b> {receiver[2]} ({receiver_username})\n"
         else:
@@ -281,9 +311,17 @@ async def paginate_my_adverts_author(call: types.CallbackQuery, state: FSMContex
             for key, value in status_keys.items():
                 if result[10] == key:
                     status = value
+            if status == 'Найден получатель':
+                receiver = await users.get_agreement_users(result[0])
+                receiver_username = await users.get_user_data(receiver[2])
+                receiver_username = "@" + receiver_username[1] if receiver_username[1] else 'username отсутствует'
+                status_text = f"<b>Статус:</b> {status}\n" \
+                              f"<b>Получатель:</b> {receiver[2]} ({receiver_username})\n"
+            else:
+                status_text = f"<b>Статус:</b> {status}\n"
             text = f"<b>Мои объявления: {current_index + 1} из {len(results)}</b>\n\n" \
                    f"<b>ID объявления:</b> {result[0]}\n" \
-                   f"<b>Статус:</b> {status}\n" \
+                   f'{status_text}' \
                    f"<b>Дата размещения:</b> {result[1].strftime('%d-%m-%Y')}\n" \
                    f"<b>Категория:</b> {result[9]}\n" \
                    f"<b>Населённый пункт:</b> {result[2]}, {result[3]}\n" \
@@ -338,7 +376,9 @@ async def my_adverts_receiver(call: types.CallbackQuery, state: FSMContext):
             elif result[7] == "User":
                 text += f"\n<b>Расходы на доставку берёт на себя получатель</b>"
         media_group = await call.message.answer_media_group(media_group)
-        cap = await call.message.answer(text, reply_markup=inline.receiver_adverts(username[0], results, current_index))
+        status = await adverts.get_advert_data(result[0])
+        cap = await call.message.answer(
+            text, reply_markup=inline.receiver_adverts(username[0], results, current_index, status))
         await ReceiverAdverts.advert.set()
         async with state.proxy() as data:
             data['media_group'] = media_group
@@ -353,7 +393,28 @@ async def my_adverts_receiver(call: types.CallbackQuery, state: FSMContext):
 
 
 async def paginate_my_adverts_receiver(call: types.CallbackQuery, state: FSMContext):
-    if call.data == 'main_menu_search':
+    if call.data.startswith("review_author_"):
+        async with state.proxy() as data:
+            data['author_id'] = call.data.split("_")[2]
+        review_existing = await review.get_user_author_review(call.data.split('_')[2], call.from_user.id)
+        if review_existing:
+            results = await adverts.get_receiver_adverts(call.from_user.id)
+            await call.message.edit_reply_markup(
+                inline.receiver_adverts_2(data.get('username'), results, data.get('current_index')))
+            await call.answer("Вы уже ставили оценку этому автору!", show_alert=True)
+        else:
+            try:
+                async with state.proxy() as data:
+                    for message in data.get('media_group'):
+                        await call.bot.delete_message(call.message.chat.id, int(message.message_id))
+                async with state.proxy() as data:
+                    message_id = data.get('cap')
+                    await call.bot.delete_message(call.message.chat.id, int(message_id.message_id))
+            except MessageToDeleteNotFound:
+                pass
+            await call.message.answer("Окей, поставьте оценку автору объявления:", reply_markup=inline.author_rating())
+            await ReceiverAdverts.next()
+    elif call.data == 'main_menu_search':
         name = call.from_user.first_name
         async with state.proxy() as data:
             for message in data.get('media_group'):
@@ -414,8 +475,9 @@ async def paginate_my_adverts_receiver(call: types.CallbackQuery, state: FSMCont
                 elif result[7] == "User":
                     text += f"\n<b>Расходы на доставку берёт на себя получатель</b>"
             media_group = await call.message.answer_media_group(media_group)
+            status = await adverts.get_advert_data(result[0])
             cap = await call.message.answer(
-                text, reply_markup=inline.receiver_adverts(username[0], results, current_index))
+                text, reply_markup=inline.receiver_adverts(username[0], results, current_index, status))
             await ReceiverAdverts.advert.set()
             async with state.proxy() as data:
                 data['media_group'] = media_group
@@ -509,14 +571,9 @@ async def change_status(call: types.CallbackQuery, state: FSMContext):
             except TypeError:
                 pass
         agreement_id, author_id, user_id = agreement_users
-        await users.delete_agreement(call.from_user.id, data.get('ad_id'))
         try:
             await call.bot.send_message(int(author_id), "Окей, оцените опыт взаимодействия с получателем:",
                                         reply_markup=inline.rating(agreement_id))
-            await call.bot.send_message(
-                int(user_id), f"Владелец объявления отметил объявление с ID {data.get('ad_id')} как завершённое! "
-                              "Оцените опыт взаимодействия с владельцем объявления:",
-                reply_markup=inline.rating(agreement_id))
         except BotBlocked:
             print("Бот заблокирован пользователем!")
         await state.finish()
@@ -566,7 +623,9 @@ async def handle_agreement_status(msg: types.Message, state: FSMContext):
                     pass
                 try:
                     await msg.bot.send_message(
-                        int(msg.text), f"Вас отметили как получателя в объявлении с ID {data.get('ad_id')}!")
+                        int(msg.text), f"Вас отметили как получателя в объявлении с ID {data.get('ad_id')}! "
+                                       f"Вы можете посмотреть его в разделе "
+                                       f"'Мой профиль' -> 'Мои объявления' -> 'Получатель'")
                 except BotBlocked:
                     print("Пользователь заблокировал бота!")
                 await msg.answer(f"Статус объявления c ID {data.get('ad_id')} изменён!",
@@ -589,13 +648,6 @@ async def handle_rating(call: types.CallbackQuery, state: FSMContext):
             await Review.review.set()
             await state.update_data(
                 {"user_id": user_id, "advert_id": advert_id, "message": mess.message_id, "rating": rating})
-        if call.from_user.id == user_id:
-            mess = await call.message.edit_text(
-                f"Вы поставили оценку {rating} для владельца объявления с ID {advert_id}."
-                f"\n\nТеперь напишите небольшой отзыв, не более 500 символов:")
-            await Review.review.set()
-            await state.update_data(
-                {"user_id": author_id, "advert_id": advert_id, "message": mess.message_id, "rating": rating})
 
 
 async def handle_review(msg: types.Message, state: FSMContext):
@@ -621,8 +673,12 @@ async def handle_review(msg: types.Message, state: FSMContext):
             if advert_author[8] == msg.from_id:
                 await msg.answer(f"Статус объявления с ID {data.get('advert_id')} успешно изменён!"
                                  f"\n\nОтзыв для получателя сохранён!", reply_markup=inline.main_menu())
-            else:
-                await msg.answer("Отзыв для автора объявления успешно сохранён!", reply_markup=inline.main_menu())
+                await msg.bot.send_message(
+                    data.get('user_id'), f"Автор объявления с ID {data.get('advert_id')} поставил вам "
+                                         f"оценку и написал отзыв!\nЕсли хотите, вы также можете поставить оценку "
+                                         f"владельцу объявления и написать о нём отзыв, это можно сделать в разделе "
+                                         f"'Мои объявления'",
+                    reply_markup=await inline.profile_menu(data.get('user_id')))
             await state.finish()
 
 
@@ -692,6 +748,48 @@ async def new_username(call: types.CallbackQuery):
         await call.answer('Для корректной работы этой функции вам необходимо создать username!', show_alert=True)
 
 
+async def review_to_author(call: types.CallbackQuery, state: FSMContext):
+    if call.data.split("_")[1] == 'cancel':
+        await call.message.edit_text("Отмена!")
+    else:
+        async with state.proxy() as data:
+            data['rating'] = call.data.split("_")[1]
+            mess = await call.message.edit_text(
+                f"Вы поставили оценку {call.data.split('_')[1]} для автора.\n\nТеперь напишите небольшой "
+                f"отзыв, не более 500 символов:")
+            data['message'] = mess.message_id
+        await ReceiverAdverts.next()
+
+
+async def handle_author_review(msg: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        explicit_words = await adverts.get_explicit_words()
+        found_words = []
+        for word in explicit_words:
+            if word in msg.text.lower():
+                found_words.append(word)
+        if found_words:
+            await msg.delete()
+            await msg.answer(f"Найдены запрещенные слова: {', '.join(found_words)}"
+                             f"\n\nПопробуйте заново, избегая запрещённых слов")
+        else:
+            data['user_id'] = msg.from_id
+            data['review'] = msg.text
+            advert_author = await adverts.get_advert_data(data.get('ad_id'))
+            await msg.bot.delete_message(msg.chat.id, int(data.get('message')))
+            await review.new_review(data.get('user_id'), advert_author[8], msg.text)
+            await msg.delete()
+            await users.update_user_rating(advert_author[8], data.get('rating'))
+            advert_author = await adverts.get_advert_data(data.get('ad_id'))
+            await msg.answer("Оценка и отзыв успешно отправлены!",
+                             reply_markup=await inline.profile_menu(data.get('user_id')))
+            await msg.bot.send_message(
+                advert_author[8], f"Объявление {data.get('ad_id')}:\nПолучатель поставил вам оценку "
+                                  f"{data.get('rating')} и оставил отзыв! "
+                                  f"\nЕго можно посмотреть в разделе 'Полученные отзывы'!")
+            await state.finish()
+
+
 def register(dp: Dispatcher):
     dp.register_callback_query_handler(profile_menu, text='profile')
     dp.register_callback_query_handler(change_region, text='change_region')
@@ -712,3 +810,5 @@ def register(dp: Dispatcher):
     dp.register_callback_query_handler(get_reviews, text='reviews')
     dp.register_callback_query_handler(handle_review_pagination, state=Review.paginate)
     dp.register_callback_query_handler(new_username, text='username')
+    dp.register_callback_query_handler(review_to_author, state=ReceiverAdverts.grade)
+    dp.register_message_handler(handle_author_review, state=ReceiverAdverts.review)

@@ -22,3 +22,13 @@ async def get_user_review(user_id):
     finally:
         db.close()
         cur.close()
+
+
+async def get_user_author_review(user_id, author_id):
+    db, cur = connect()
+    try:
+        cur.execute("SELECT * FROM freebies_review WHERE user_id = %s AND author_id = %s", (user_id, author_id, ))
+        return cur.fetchone()
+    finally:
+        db.close()
+        cur.close()

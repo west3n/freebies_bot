@@ -208,12 +208,9 @@ def confirm_searching() -> InlineKeyboardMarkup:
     return kb
 
 
-def advert_menu(username, results, current_index) -> InlineKeyboardMarkup:
+def advert_menu(owner_id, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
-    if username:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
-    else:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data=f'contact_advert_{owner_id}'))
     markup.add(InlineKeyboardButton('⭐️ Добавить в избранное', callback_data='favorite_advert')),
     markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
     if len(results) == 1:
@@ -241,12 +238,9 @@ def advert_menu(username, results, current_index) -> InlineKeyboardMarkup:
     return markup
 
 
-def advert_menu_favorite(username, results, current_index) -> InlineKeyboardMarkup:
+def advert_menu_favorite(owner_id, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
-    if username:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
-    else:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data=f'contact_advert_{owner_id}'))
     markup.add(InlineKeyboardButton('⛔ Пожаловаться на содержание', callback_data='complain_advert'))
     if len(results) == 1:
         markup.row(
@@ -273,12 +267,9 @@ def advert_menu_favorite(username, results, current_index) -> InlineKeyboardMark
     return markup
 
 
-def favorites_menu(username, results, current_index) -> InlineKeyboardMarkup:
+def favorites_menu(owner_id, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
-    if username:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
-    else:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data=f'contact_advert_{owner_id}'))
     markup.add(InlineKeyboardButton('❌ Убрать из избранного', callback_data='favorite_remove')),
     if len(results) == 1:
         markup.row(
@@ -305,12 +296,9 @@ def favorites_menu(username, results, current_index) -> InlineKeyboardMarkup:
     return markup
 
 
-def favorites_menu_2(username, results, current_index) -> InlineKeyboardMarkup:
+def favorites_menu_2(owner_id, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
-    if username:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
-    else:
-        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data=f'contact_advert_{owner_id}'))
     if len(results) == 1:
         markup.row(
             InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
@@ -513,7 +501,41 @@ def adverts_menu() -> InlineKeyboardMarkup:
     return kb
 
 
-def receiver_adverts(username, results, current_index) -> InlineKeyboardMarkup:
+def receiver_adverts(username, results, current_index, status) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup()
+    if username:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
+    else:
+        markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', callback_data='contact_advert'))
+    if status[10] == 'confirm':
+        markup.add(InlineKeyboardButton(f'🧑‍💻️ Поставить оценку и написать отзыв',
+                                        callback_data=f'review_author_{status[8]}'))
+    if len(results) == 1:
+        markup.row(
+            InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search')
+        )
+    else:
+        if current_index == 0:
+            markup.row(
+                InlineKeyboardButton('◀️ Главное меню', callback_data='main_menu_search'),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+        elif current_index == len(results) - 1:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред. объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'),
+            )
+        else:
+            markup.row(
+                InlineKeyboardButton("◀️ Пред.объявление", callback_data=f"prev:{current_index}"),
+                InlineKeyboardButton("След.объявление ▶️", callback_data=f"next:{current_index}")
+            )
+            markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
+        markup.add()
+    return markup
+
+
+def receiver_adverts_2(username, results, current_index) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup()
     if username:
         markup.add(InlineKeyboardButton(f'📞 Связаться с владельцем', url=f'https://t.me/{username}'))
@@ -542,3 +564,14 @@ def receiver_adverts(username, results, current_index) -> InlineKeyboardMarkup:
             markup.row(InlineKeyboardButton('🔽 Главное меню', callback_data='main_menu_search'))
         markup.add()
     return markup
+
+
+def author_rating() -> InlineKeyboardMarkup:
+    buttons = []
+    for number in range(1, 6):
+        buttons.append(InlineKeyboardButton(text=f"{number}", callback_data=f"rating_{number}"))
+    kb = InlineKeyboardMarkup(row_width=5)
+    kb.add(*buttons)
+    button = [InlineKeyboardButton("◀️ Отмена", callback_data='rating_cancel')]
+    kb.add(*button)
+    return kb

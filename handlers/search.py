@@ -213,18 +213,26 @@ async def search_city_selection(call: types.CallbackQuery, state: FSMContext):
 
 
 async def start_searching(call: types.CallbackQuery, state: FSMContext):
-    if call.data == 'contact_advert':
+    if call.data.startswith('contact_advert_'):
+        async with state.proxy() as data:
+            owner_id = call.data.split('_')[2]
+            await call.bot.send_message(owner_id, f"<b>Вашим объявлением с ID {data.get('ad_id')} "
+                                                  f"заинтересовались, проверьте личные сообщения!</b>")
         async with state.proxy() as data:
             username = await adverts.get_username_by_advert_id(data.get('ad_id'))
-            await call.message.answer(f"<b>Контакт пользователя:</b> {username[1]}")
+            if username[1] == 'Нет контакта':
+                await call.message.answer(f"<b>Username пользователя:</b> @{username[0]}")
+            else:
+                await call.message.answer(f"<b>Контакт пользователя:</b> {username[1]}")
     elif call.data == 'favorite_advert':
         async with state.proxy() as data:
             try:
                 await favorite.add_to_favorite(int(data.get('ad_id')), call.from_user.id)
             except psycopg2.Error:
                 await call.answer('Это объявление уже было добавлено в избранное!')
+            username = await adverts.get_username_by_advert_id(data.get('ad_id'))
             await call.message.edit_reply_markup(reply_markup=inline.advert_menu_favorite(
-                data.get('username'), data.get('results'), data.get('current_index')))
+                username[3], data.get('results'), data.get('current_index')))
             await call.answer('Объявление добавлено в избранное!')
     elif call.data == 'complain_advert':
         async with state.proxy() as data:
@@ -318,7 +326,7 @@ async def start_searching(call: types.CallbackQuery, state: FSMContext):
                 elif result[7] == "User":
                     text += f"\n<b>Расходы на доставку берёт на себя получатель</b>"
             media_group = await call.message.answer_media_group(media_group)
-            cap = await call.message.answer(text, reply_markup=inline.advert_menu(username[0], results, current_index))
+            cap = await call.message.answer(text, reply_markup=inline.advert_menu(username[3], results, current_index))
             async with state.proxy() as data:
                 data['media_group'] = media_group
                 data['cap'] = cap
